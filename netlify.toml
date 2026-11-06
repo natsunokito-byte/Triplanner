@@ -7,6 +7,10 @@
   # referrer / Supabase RLS). Netlify's secrets scanner would otherwise fail the deploy when it finds them.
   SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,NEXT_PUBLIC_SITE_URL,NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY,NEXT_PUBLIC_TURNSTILE_SITE_KEY"
 
+  # Smart detection flags anything shaped like "AIza…" (our referrer-restricted Google browser key). Exact-value matching
+  # of every NON-public env var stays on, so a leaked service-role / server key still fails the deploy.
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
 # Next.js 16 is supported by Netlify's runtime with zero config; no publish dir needed.
 [functions]
   node_bundler = "esbuild"
