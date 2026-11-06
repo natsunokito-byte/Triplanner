@@ -1,25 +1,27 @@
-// Destination search (Open-Meteo geocoding, no API key) + country -> currency.
+// Place labels (country names from Unicode CLDR) + country -> currency. Search itself is /api/destination (Google).
 
 export type Place = {
-  id: number;
   name: string;
   admin1?: string;
   country?: string;
   country_code?: string;
-  timezone: string;
-  label: string; // "Tokyo, Japan"
 };
 
-export async function searchPlaces(q: string, lang: "zh" | "en", signal?: AbortSignal): Promise<Place[]> {
-  if (q.trim().length < 2) return [];
-  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=${lang}&format=json`;
-  const res = await fetch(url, { signal });
-  if (!res.ok) return [];
-  const json = await res.json();
-  return ((json.results ?? []) as Omit<Place, "label">[]).map((r) => ({
-    ...r,
-    label: [r.name, r.admin1 && r.admin1 !== r.name ? r.admin1 : null, r.country].filter(Boolean).join(", "),
-  }));
+/**
+ * Label = name, region, country. The COUNTRY comes from the ISO code via Unicode CLDR (Intl.DisplayNames), not from the
+ * geocoder's text — so Taiwan (TW) is always shown as a country ("台灣" / "Taiwan"), never "…省, 台湾".
+ * Taiwan's "province" admin level (GeoNames data) is dropped, and "A or B" alternates keep only the first.
+ */
+export function formatPlaceLabel(r: Place, locale: "zh-TW" | "en"): string {
+  let country = r.country;
+  if (r.country_code) {
+    try {
+      country = new Intl.DisplayNames([locale], { type: "region" }).of(r.country_code.toUpperCase()) ?? country;
+    } catch { /* keep the geocoder's text */ }
+  }
+  let admin = r.admin1?.split(/\s+or\s+/)[0]?.trim();
+  if (r.country_code?.toUpperCase() === "TW" && admin && /省|province/i.test(admin)) admin = undefined;
+  return [r.name, admin && admin !== r.name ? admin : null, country].filter(Boolean).join(", ");
 }
 
 // ISO 3166-1 alpha-2 -> ISO 4217. Covers common travel destinations; unknown => USD (user can override).

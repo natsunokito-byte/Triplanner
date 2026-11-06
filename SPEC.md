@@ -89,7 +89,7 @@
 
 ## 4. 目的地 → 時區/幣別 自動帶入
 
-- 目的地輸入用 **Open-Meteo Geocoding API**（免 key），回傳 `timezone` 與 `country_code`。
+- 目的地輸入用 **Google Places (New) Autocomplete + Place Details**（zh-TW，繁體）取得名稱與座標，再以 **Time Zone API** 取得 IANA 時區；`country_code` 取自 address components，國家顯示名稱由 CLDR 產生（台灣＝國家，不顯示「省」）。原先的 Open-Meteo 因 zh 結果為簡體而移除。
 - `country_code → currency` 用內建靜態對照表（ISO 3166 → ISO 4217）。
 - 第一個目的地決定 trip 預設 `timezone` / `currency`；之後新增目的地不覆蓋。使用者可手動覆寫，覆寫後不再自動變動。
 

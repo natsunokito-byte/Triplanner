@@ -30,7 +30,7 @@
 - [ ] 注意：寄件失敗時驗證碼流程仍會回「已寄出」（避免洩漏名單），所以要看 Resend 後台確認有沒有退信
 
 ## 4. Google Maps Platform
-- [ ] 啟用 Routes API、Places API (New)
+- [ ] 啟用 Routes API、Places API (New)、**Time Zone API**（目的地搜尋會用到；伺服器 key 的 API 限制也要包含這三項）
 - [ ] 伺服器 key：限制 API 為 Routes；瀏覽器 key：限制 HTTP referrer 為你的網域、API 為 Places
 - [ ] 設定每日配額與預算警示（預估時間只在按按鈕時呼叫，但仍要設上限）
 - [ ] 實測：新增交通 → 按「預估時間」會填入分鐘數；`flight`／`other` 不會預估

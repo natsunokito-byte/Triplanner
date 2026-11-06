@@ -31,7 +31,8 @@ Next.js 16 + Supabase. 規格見 `SPEC.md`，設計系統見 `DESIGN.md`。
 - M12 新增兩個欄位（`trips.availability_blocked_emails`、`viewer_otps.purpose`），已寫進 `supabase/schema.sql`；若你已經跑過舊版 schema，請手動 `alter table`。
 - 「找我約」另需 `NEXT_PUBLIC_TURNSTILE_SITE_KEY`／`TURNSTILE_SECRET`（正式環境沒設 secret 會拒絕所有請求者驗證）。空檔頁沒有 IP rate limit，建議在主機平台（Netlify Rate limiting）對 `/a/*` 設限。
 - Next.js 16：middleware 改名為 `src/proxy.ts`；寫程式前請看 `node_modules/next/dist/docs/`。
-- 目的地搜尋使用 Open-Meteo geocoding（免 key）；國家→幣別對照表在 `src/lib/geo.ts`，未收錄的國家預設 USD，可手動改。
+- 目的地搜尋走伺服器端 `/api/destination`：Google Places (New) 自動完成＋Place Details＋Time Zone API（需要 `GOOGLE_MAPS_SERVER_KEY`，並啟用這三項）。語言用 zh-TW（繁體），國家名稱由 ISO 代碼經 Unicode CLDR 產生，台灣一律顯示為國家「台灣」。沒設金鑰時可直接輸入名稱按 Enter 新增。國家→幣別對照表在 `src/lib/geo.ts`，未收錄的國家預設 USD，可手動改。
+- 專案原則：不使用註冊在中國的服務，也不使用輸出簡體中文的服務。
 - Viewer 需設定 `SUPABASE_SERVICE_ROLE_KEY`、`VIEWER_COOKIE_SECRET`（≥32 字元）、`RESEND_API_KEY`、`RESEND_FROM`；開發環境未設 Resend 時，驗證碼會印在 server console。
 
 ## 匯率（M6）

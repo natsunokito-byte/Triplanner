@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Loader2, MapPin, X } from "lucide-react";
 import { SubmitButton } from "./submit-button";
-import { allCurrencies, allTimezones, currencyForCountry, searchPlaces, type Place } from "@/lib/geo";
+import { allCurrencies, allTimezones, currencyForCountry } from "@/lib/geo";
+
+type Suggestion = { placeId: string; text: string };
 import type { Trip } from "@/lib/types";
 
 export function TripForm({
@@ -30,7 +32,9 @@ export function TripForm({
   const [autoNote, setAutoNote] = useState<string | null>(null);
 
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<Place[]>([]);
+  const [results, setResults] = useState<Suggestion[]>([]);
+  const [searchErr, setSearchErr] = useState(false);
+  const [session, setSession] = useState(() => crypto.randomUUID());
   const [loading, setLoading] = useState(false);
   const ctrl = useRef<AbortController | null>(null);
 
@@ -41,7 +45,10 @@ export function TripForm({
       ctrl.current = new AbortController();
       setLoading(true);
       try {
-        setResults(await searchPlaces(q, locale === "en" ? "en" : "zh", ctrl.current.signal));
+        const res = await fetch(`/api/destination?${new URLSearchParams({ q, lang: locale === "en" ? "en" : "zh", s: session })}`, { signal: ctrl.current.signal });
+        const json = await res.json();
+        setSearchErr(!res.ok);
+        setResults(res.ok ? (json.suggestions as Suggestion[]) : []);
       } catch {
         /* aborted or offline */
       } finally {
@@ -49,19 +56,34 @@ export function TripForm({
       }
     }, 300);
     return () => clearTimeout(h);
-  }, [q, locale]);
+  }, [q, locale, session]);
 
-  function pick(p: Place) {
-    if (!destinations.includes(p.label)) {
-      if (destinations.length === 0 && !touched) {
-        setTimezone(p.timezone);
+  function add(label: string) {
+    if (label && !destinations.includes(label)) setDestinations([...destinations, label]);
+    setQ("");
+    setResults([]);
+  }
+
+  async function pick(sug: Suggestion) {
+    setResults([]);
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/destination?${new URLSearchParams({ placeId: sug.placeId, lang: locale === "en" ? "en" : "zh", s: session })}`);
+      const json = await res.json();
+      if (!res.ok) { add(sug.text); return; }
+      const p = json.place as { label: string; timezone: string; country_code: string };
+      if (!destinations.includes(p.label) && destinations.length === 0 && !touched) {
+        if (p.timezone) setTimezone(p.timezone);
         setCurrency(currencyForCountry(p.country_code));
         setAutoNote(p.label);
       }
-      setDestinations([...destinations, p.label]);
+      add(p.label);
+    } catch {
+      add(sug.text);
+    } finally {
+      setLoading(false);
+      setSession(crypto.randomUUID()); // a new billing session per completed search
     }
-    setQ("");
-    setResults([]);
   }
 
   const dateInvalid = !!start && !!end && end < start;
@@ -98,17 +120,19 @@ export function TripForm({
           ))}
         </div>
         <div className="relative">
-          <input id="dest" className="input" placeholder={t("destinationsPh")} value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" />
+          <input
+            id="dest" className="input" placeholder={t("destinationsPh")} value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off"
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(q.trim()); } }}
+          />
           {loading && <Loader2 size={14} className="absolute right-3 top-3 animate-spin text-muted" />}
-          {q.trim().length >= 2 && results.length > 0 && (
+          {q.trim().length >= 2 && (results.length > 0 || searchErr) && (
             <ul className="card absolute z-20 mt-1 w-full max-h-64 overflow-auto p-1" style={{ boxShadow: "var(--shadow-2)" }}>
               {results.map((p) => (
-                <li key={p.id}>
-                  <button type="button" className="w-full text-left rounded-md px-3 py-2 hover:bg-surface-2" onClick={() => pick(p)}>
-                    {p.label} <span className="text-xs text-muted">· {p.timezone}</span>
-                  </button>
+                <li key={p.placeId}>
+                  <button type="button" className="w-full text-left rounded-md px-3 py-2 hover:bg-surface-2" onClick={() => pick(p)}>{p.text}</button>
                 </li>
               ))}
+              {searchErr && <li className="px-3 py-2 text-xs text-muted">{t("searchUnavailable")}</li>}
             </ul>
           )}
         </div>
