@@ -16,6 +16,7 @@ function LoginForm() {
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState(false);
+  const [sendError, setSendError] = useState("");
   const [verifying, setVerifying] = useState(false);
   const router = useRouter();
 
@@ -26,6 +27,7 @@ function LoginForm() {
       email,
       options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     });
+    setSendError(error ? `${error.status ?? ""} ${error.message}`.trim() : "");
     setState(error ? "error" : "sent");
   }
 
@@ -72,7 +74,12 @@ function LoginForm() {
             {codeError && <p role="alert" className="text-sm text-danger">{t("codeError")}</p>}
           </form>
         )}
-        {state === "error" && <p className="text-sm text-danger">{t("error")}</p>}
+        {state === "error" && (
+          <div role="alert" className="space-y-1 text-sm text-danger">
+            <p>{t("error")}</p>
+            {sendError && <p className="break-words text-xs text-muted">{sendError}</p>}
+          </div>
+        )}
       </div>
     </main>
   );
