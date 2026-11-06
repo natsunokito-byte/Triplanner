@@ -1,0 +1,220 @@
+"use client";
+
+import Link from "next/link";
+import { useMemo, useOptimistic, useState, useTransition } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { AlertTriangle, Check, EyeOff, MapPin, Plus } from "lucide-react";
+import { movePlanToDay, setPlanCompleted } from "@/app/actions";
+import { METHOD_ICON, type Method, type Payment } from "@/lib/commute";
+import { Money, useFx } from "./fx";
+import { toTrip } from "@/lib/money";
+import { PLAN_ICON, ptVars, type PlanType, type Visibility } from "@/lib/plan-types";
+import { localDate, localToUtc, utcToLocal } from "@/lib/tz";
+
+export type BoardPlan = {
+  id: string;
+  type: PlanType;
+  title: string;
+  location_name: string | null;
+  start_at: string;
+  duration_min: number;
+  visibility: Visibility;
+  completed: boolean;
+  cost: number | null;
+  cost_currency: string | null;
+  usd_frozen: number | null; // USD per unit frozen when the plan was completed
+  people: { id: string; name: string }[];
+};
+
+export type BoardCommute = {
+  id: string; from_plan_id: string | null; to_plan_id: string | null; method: Method; start_at: string;
+  duration_min: number; cost: number | null; cost_currency: string | null; payment: Payment | null;
+};
+
+export function DayBoard({
+  tripId, tz, days, plans, commutes, currency,
+}: { tripId: string; tz: string; days: string[]; plans: BoardPlan[]; commutes: BoardCommute[]; currency: string }) {
+  const t = useTranslations("plan");
+  const tc = useTranslations("commute");
+  const tf = useTranslations("fx");
+  const fx = useFx();
+  const locale = useLocale();
+  const [, startTransition] = useTransition();
+  const [over, setOver] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const [optPlans, moveOptimistic] = useOptimistic(plans, (state, m: { kind: "move"; id: string; date: string } | { kind: "complete"; id: string; completed: boolean }) =>
+    state.map((p) => {
+      if (p.id !== m.id) return p;
+      if (m.kind === "complete") return { ...p, completed: m.completed };
+      return { ...p, start_at: localToUtc(`${m.date}T${utcToLocal(p.start_at, tz).slice(11)}`, tz).toISOString() };
+    }),
+  );
+
+  const hm = useMemo(() => new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: tz }), [locale, tz]);
+  const md = useMemo(() => new Intl.DateTimeFormat(locale, { month: "numeric", day: "numeric", timeZone: "UTC" }), [locale]);
+  const wd = useMemo(() => new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "UTC" }), [locale]);
+
+  const byDay = new Map<string, BoardPlan[]>();
+  for (const p of optPlans) {
+    const k = localDate(p.start_at, tz);
+    byDay.set(k, [...(byDay.get(k) ?? []), p]);
+  }
+  // Plans outside the trip range still get a column so nothing is hidden.
+  const columns = [...new Set([...days, ...byDay.keys()])].sort();
+
+  function drop(date: string, id: string) {
+    setOver(null);
+    setFailed(false);
+    startTransition(async () => {
+      moveOptimistic({ kind: "move", id, date });
+      try { await movePlanToDay(tripId, id, date); } catch { setFailed(true); }
+    });
+  }
+
+  function toggle(id: string, completed: boolean) {
+    setFailed(false);
+    startTransition(async () => {
+      moveOptimistic({ kind: "complete", id, completed });
+      try { await setPlanCompleted(tripId, id, completed); } catch { setFailed(true); }
+    });
+  }
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="hidden text-xs text-muted md:block">{t("dragHint")}</p>
+        <p className="text-xs text-muted md:hidden">{t("swipeHint")}</p>
+        {failed && <p role="alert" className="text-xs text-danger">{t("saveFailed")}</p>}
+      </div>
+      <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 md:snap-none">
+        {columns.map((d) => {
+          const list = (byDay.get(d) ?? []).sort((a, b) => a.start_at.localeCompare(b.start_at));
+          const outside = !days.includes(d);
+          let prevEnd = 0;
+          let total = 0;
+          let hasTotal = false;
+          if (fx) {
+            const add = (amount: number | null, cur: string | null, frozen: number | null) => {
+              if (amount == null) return;
+              const v = toTrip(fx.ctx, amount, cur ?? fx.ctx.tripCurrency, frozen);
+              if (v != null) { total += v; hasTotal = true; }
+            };
+            for (const p of list) add(p.cost, p.cost_currency, p.usd_frozen);
+            for (const x of commutes) if (localDate(x.start_at, tz) === d) add(x.cost, x.cost_currency, null);
+          }
+          return (
+            <div
+              key={d}
+              className={`card flex w-[86vw] max-w-[320px] shrink-0 snap-start flex-col sm:w-[280px] ${over === d ? "border-primary bg-primary-soft/40" : ""}`}
+              onDragOver={(e) => { e.preventDefault(); setOver(d); }}
+              onDragLeave={() => setOver((cur) => (cur === d ? null : cur))}
+              onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData("text/plain"); if (id) drop(d, id); }}
+            >
+              <div className="sticky top-0 flex items-center justify-between rounded-t-[12px] border-b border-border bg-surface px-3 py-2">
+                <div>
+                  <span className="font-semibold">{md.format(new Date(d))}</span>{" "}
+                  <span className="text-xs text-muted">{wd.format(new Date(d))}</span>
+                  {outside && <div className="text-[11px] text-warning">{t("outside")}</div>}
+                  {hasTotal && fx && (
+                    <div className="text-[11px] tabular-nums text-muted">{tf("dayTotal")} <Money amount={total} currency={fx.ctx.tripCurrency} /></div>
+                  )}
+                </div>
+                <Link href={`/t/${tripId}/plans/new?date=${d}`} className="btn btn-sm !h-7 !px-2" aria-label={t("add")}><Plus size={14} /></Link>
+              </div>
+
+              <ul className="flex flex-1 flex-col gap-2 p-2">
+                {list.length === 0 && <li className="py-6 text-center text-xs text-muted">{t("dayEmpty")}</li>}
+                {list.map((p, idx) => {
+                  const next = list[idx + 1];
+                  const link = next ? commutes.find((x) => x.from_plan_id === p.id && x.to_plan_id === next.id) : undefined;
+                  const CIcon = link ? METHOD_ICON[link.method] : null;
+                  const Icon = PLAN_ICON[p.type];
+                  const c = ptVars(p.type);
+                  const startMs = Date.parse(p.start_at);
+                  const endMs = startMs + p.duration_min * 60000;
+                  const overlap = prevEnd > startMs;
+                  prevEnd = Math.max(prevEnd, endMs);
+                  return (
+                    <li key={p.id}>
+                      {overlap && (
+                        <div className="mb-1 flex items-center gap-1 text-[11px] text-warning"><AlertTriangle size={12} /> {t("overlap")}</div>
+                      )}
+                      <div className="relative">
+                      <Link
+                        href={`/t/${tripId}/plans/${p.id}`}
+                        draggable
+                        onDragStart={(e) => { e.dataTransfer.setData("text/plain", p.id); e.dataTransfer.effectAllowed = "move"; }}
+                        className={`block rounded-[8px] border border-border bg-surface p-2 pl-3 pr-9 shadow-[var(--shadow-1)] transition-shadow hover:shadow-[var(--shadow-2)] ${p.completed ? "opacity-60" : ""}`}
+                        style={{ borderLeft: `4px solid ${c.dot}` }}
+                      >
+                        <div className="flex items-center gap-1 text-xs tabular-nums text-muted">
+                          <Icon size={13} style={{ color: c.fg }} />
+                          {hm.format(startMs)}–{hm.format(endMs)}
+                          {p.visibility !== "normal" && <EyeOff size={12} className="ml-auto" aria-label={t("private")} />}
+                        </div>
+                        <div className={`mt-0.5 font-semibold leading-snug ${p.completed ? "line-through" : ""}`}>{p.title}</div>
+                        <div className="mt-0.5 inline-block rounded-full px-2 text-[11px]" style={{ background: c.bg, color: c.fg }}>{t(`types.${p.type}`)}</div>
+                        {p.location_name && (
+                          <div className="mt-1 flex items-center gap-1 text-xs text-muted"><MapPin size={12} className="shrink-0" /><span className="truncate">{p.location_name}</span></div>
+                        )}
+                        {p.cost != null && (
+                          <div className="mt-1 text-xs tabular-nums text-muted"><Money amount={p.cost} currency={p.cost_currency} frozen={p.usd_frozen} /></div>
+                        )}
+                        {p.people.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {p.people.map((x) => <span key={x.id} className="rounded-full bg-surface-2 px-2 text-[11px]">{x.name}</span>)}
+                          </div>
+                        )}
+                      </Link>
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={p.completed}
+                        aria-label={t("complete")}
+                        onClick={() => toggle(p.id, !p.completed)}
+                        className={`absolute bottom-2 right-2 flex h-8 w-8 items-center md:h-6 md:w-6 justify-center rounded-full border transition-colors ${
+                          p.completed ? "border-success bg-success text-white" : "border-border bg-surface text-transparent hover:border-success hover:text-success"
+                        }`}
+                      >
+                        <Check size={14} />
+                      </button>
+                      </div>
+                      <div className="mt-1 md:hidden">
+                        <select
+                          aria-label={t("moveTo")}
+                          value={d}
+                          onChange={(e) => drop(e.target.value, p.id)}
+                          className="h-8 w-full rounded-md border border-border bg-surface px-2 text-xs text-muted"
+                        >
+                          {columns.map((col) => <option key={col} value={col}>{t("moveTo")}: {md.format(new Date(col))} {wd.format(new Date(col))}</option>)}
+                        </select>
+                      </div>
+                      {next && (
+                        <Link
+                          href={link ? `/t/${tripId}/commutes/${link.id}` : `/t/${tripId}/commutes/new?from=${p.id}&to=${next.id}`}
+                          className={`mx-auto mt-2 flex w-fit items-center gap-1 rounded-full px-3 py-1 text-xs ${
+                            link ? "bg-surface-2 text-text" : "border border-dashed border-border text-muted hover:text-text"
+                          }`}
+                        >
+                          {link && CIcon ? (
+                            <>
+                              <CIcon size={12} /> {tc(`methods.${link.method}`)} · {tc("min", { n: link.duration_min })}
+                              {link.cost != null && <> · <Money amount={link.cost} currency={link.cost_currency ?? currency} /></>}
+                            </>
+                          ) : (
+                            tc("add")
+                          )}
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}

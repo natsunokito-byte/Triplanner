@@ -1,0 +1,6 @@
+[build]
+  command = "npm run build"
+
+# Next.js 16 is supported by Netlify's runtime with zero config; no publish dir needed.
+[functions]
+  node_bundler = "esbuild"
