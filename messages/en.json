@@ -18,7 +18,8 @@
     "email": "Email",
     "send": "Send sign-in link",
     "sent": "Sent! Check your inbox and click the link.",
-    "error": "Couldn't send the link. Please try again."
+    "error": "Couldn't send the link. Please try again.",
+    "callbackError": "That sign-in link is invalid or expired. Request a new one and open it in the same browser you requested it from (not your mail app's built-in browser)."
   },
   "welcome": {
     "title": "Trip Planner",

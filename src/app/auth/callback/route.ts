@@ -8,6 +8,8 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) return NextResponse.redirect(`${origin}/`);
+    console.error("auth callback failed:", error.message);
+    return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message.slice(0, 200))}`);
   }
-  return NextResponse.redirect(`${origin}/login`);
+  return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(searchParams.get("error_description") ?? "missing code")}`);
 }
