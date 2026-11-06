@@ -14,12 +14,15 @@
   },
   "login": {
     "title": "Sign in to Trip Planner",
-    "subtitle": "Enter your email and we'll send you a sign-in link.",
+    "subtitle": "Enter your email and we'll send you a sign-in code.",
     "email": "Email",
-    "send": "Send sign-in link",
-    "sent": "Sent! Check your inbox and click the link.",
-    "error": "Couldn't send the link. Please try again.",
-    "callbackError": "That sign-in link is invalid or expired. Request a new one and open it in the same browser you requested it from (not your mail app's built-in browser)."
+    "send": "Send code",
+    "sent": "Sent! Check your inbox and enter the code below.",
+    "error": "Couldn't send the code. Please try again.",
+    "callbackError": "That sign-in link is invalid or expired. Request a new one and open it in the same browser you requested it from (not your mail app's built-in browser).",
+    "code": "Code",
+    "verify": "Sign in",
+    "codeError": "That code is wrong or expired. Please request a new one."
   },
   "welcome": {
     "title": "Trip Planner",

@@ -1,6 +1,6 @@
 "use client";
 import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { LocaleSwitcher } from "@/components/locale-switcher";
@@ -14,6 +14,10 @@ function LoginForm() {
   const callbackError = useSearchParams().get("error");
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [code, setCode] = useState("");
+  const [codeError, setCodeError] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const router = useRouter();
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -23,6 +27,16 @@ function LoginForm() {
       options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     });
     setState(error ? "error" : "sent");
+  }
+
+  async function verify(e: React.FormEvent) {
+    e.preventDefault();
+    setVerifying(true); setCodeError(false);
+    const { error } = await createClient().auth.verifyOtp({ email, token: code.trim(), type: "email" });
+    setVerifying(false);
+    if (error) { setCodeError(true); return; }
+    router.replace("/");
+    router.refresh();
   }
 
   return (
@@ -46,7 +60,18 @@ function LoginForm() {
             <p className="break-words text-xs text-muted">{callbackError}</p>
           </div>
         )}
-        {state === "sent" && <p className="text-sm text-success">{t("sent")}</p>}
+        {state === "sent" && (
+          <form onSubmit={verify} className="space-y-3 border-t border-border pt-4">
+            <p className="text-sm text-success">{t("sent")}</p>
+            <div>
+              <label className="label" htmlFor="code">{t("code")}</label>
+              <input id="code" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6,10}" maxLength={10} required
+                className="input text-center text-lg tracking-[0.3em] tabular-nums" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} />
+            </div>
+            <button className="btn btn-primary w-full" disabled={verifying || code.length < 6}>{t("verify")}</button>
+            {codeError && <p role="alert" className="text-sm text-danger">{t("codeError")}</p>}
+          </form>
+        )}
         {state === "error" && <p className="text-sm text-danger">{t("error")}</p>}
       </div>
     </main>
