@@ -20,7 +20,7 @@ export default async function Report({ params }: { params: Promise<{ id: string 
   if (!tripRow) notFound();
   const trip = tripRow as Trip;
   const [{ data: planRows }, { data: peopleRows }] = await Promise.all([
-    supabase.from("plans").select("*").eq("trip_id", id).eq("completed", true).order("start_at"),
+    supabase.from("plans").select("*").eq("trip_id", id).eq("completed", true).not("start_at", "is", null).order("start_at"),
     supabase.from("people").select("*").eq("trip_id", id),
   ]);
   const plans = (planRows ?? []) as Plan[];
@@ -38,8 +38,8 @@ export default async function Report({ params }: { params: Promise<{ id: string 
 
   const reportPlans: ReportPlan[] = plans.map((p) => ({
     id: p.id,
-    day: localDate(p.start_at, trip.timezone),
-    time: utcToLocal(p.start_at, trip.timezone).slice(11, 16),
+    day: localDate(p.start_at!, trip.timezone),
+    time: utcToLocal(p.start_at!, trip.timezone).slice(11, 16),
     title: p.title,
     typeLabel: tp(`types.${p.type}`),
     location: p.location_name,

@@ -14,7 +14,7 @@ export default async function NewPlan({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ date?: string; type?: string }>;
+  searchParams: Promise<{ date?: string; type?: string; undated?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -43,7 +43,7 @@ export default async function NewPlan({
             categories={(catRows ?? []) as { id: string; name: string }[]}
             tz={trip.timezone}
             currency={trip.currency}
-            defaults={{ start: `${date}T12:00`, type }}
+            defaults={{ start: sp.undated === "1" ? null : `${date}T12:00`, type, fallbackStart: `${date}T12:00` }}
             submitLabel={t("create")}
           />
         </div>

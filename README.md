@@ -29,6 +29,8 @@ Next.js 16 + Supabase. 規格見 `SPEC.md`，設計系統見 `DESIGN.md`。
 
 ## 注意
 - ✅ M13：行程時長改以「小時」輸入（0.5 小時一格）；複製行程；建立／編輯行程時可直接加待辦；費用改為「品項＋金額」自動加總（品項可標「每小時計費」＝單價×行程小時數）；Cosplay 攝影新增攝影師／攝影師費用／攝影棚費用（總費用＝兩項費用＋其他品項）；新行程類型「任務」（不計入聚會計分板）；新頁面 `/t/[id]/todos`（未完成／已完成分頁、自訂分類）。
+- ✅ M14：行程小卡顯示攝影師／攝影棚名稱；新頁面「行程一覽」`/t/[id]/plans`（可複選類型篩選）；可建立「未排日期」行程（主頁最下方折疊區與行程一覽皆可建立，可用選單排到某天）；主頁改為「行程在上、住宿在下」，兩者橫向捲動依「天」連動。未排日期的行程不佔「找我約」時段、不給檢視者看、不能邀請／匯出行事曆。
+- **M14 需要資料庫 migration：** 在 M13 之後執行 `supabase/migrations/003_m14.sql`（`plans.start_at` 改成可為空、新增 `studio_name`）。
 - **M13 需要資料庫 migration：** 若你已跑過舊版 schema，請到 Supabase SQL Editor 執行 `supabase/migrations/002_m13.sql`（只跑一次；全新資料庫直接跑 `schema.sql` 即可）。
 - M12 新增兩個欄位（`trips.availability_blocked_emails`、`viewer_otps.purpose`），已寫進 `supabase/schema.sql`；若你已經跑過舊版 schema，請手動 `alter table`。
 - 「找我約」另需 `NEXT_PUBLIC_TURNSTILE_SITE_KEY`／`TURNSTILE_SECRET`（正式環境沒設 secret 會拒絕所有請求者驗證）。空檔頁沒有 IP rate limit，建議在主機平台（Netlify Rate limiting）對 `/a/*` 設限。

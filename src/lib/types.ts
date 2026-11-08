@@ -63,7 +63,8 @@ export type Plan = {
   title: string;
   location_name: string | null;
   location_address: string | null;
-  start_at: string;
+  start_at: string | null; // null = not scheduled yet
+  studio_name: string | null;
   duration_min: number;
   cost: number | null;
   cost_currency: string | null;

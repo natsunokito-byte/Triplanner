@@ -1,6 +1,6 @@
 # 上線前檢查清單
 
-> M0–M12 的程式只通過 build／lint／型別檢查／單元測試（44 項），**從未接過真的 Supabase、Resend、Google、Turnstile 跑過**。這份清單的重點就是把這些補上。
+> M0–M12 的程式只通過 build／lint／型別檢查／單元測試（45 項），**從未接過真的 Supabase、Resend、Google、Turnstile 跑過**。這份清單的重點就是把這些補上。
 
 ## 1. Supabase
 - [ ] 建立專案，在 SQL Editor 執行 `supabase/schema.sql`（若已跑過舊版：補 `trips.availability_blocked_emails text[] not null default '{}'`、`viewer_otps.purpose text not null default 'view'`）
@@ -104,3 +104,4 @@
 ## M13 之後多一步
 
 - [ ] 已建立過資料庫的人：Supabase → SQL Editor → 貼上 `supabase/migrations/002_m13.sql` → Run（只跑一次）。沒跑的話，新增行程、待辦頁會出錯。
+- [ ] 再執行 `supabase/migrations/003_m14.sql`（M14，接在 002 之後；只跑一次）。

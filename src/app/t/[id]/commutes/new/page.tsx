@@ -32,7 +32,7 @@ export default async function NewCommute({
   const from = fromRow as Plan | null;
   const to = toRow as Plan | null;
   // Default departure = when the previous plan ends.
-  const startIso = from ? new Date(Date.parse(from.start_at) + from.duration_min * 60000).toISOString() : to?.start_at ?? new Date().toISOString();
+  const startIso = from?.start_at ? new Date(Date.parse(from.start_at) + from.duration_min * 60000).toISOString() : to?.start_at ?? new Date().toISOString();
 
   return (
     <>

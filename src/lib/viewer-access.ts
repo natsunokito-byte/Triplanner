@@ -75,7 +75,8 @@ export function shapeForViewer(raw: RawInput, viewer: Viewer, requestedMode?: st
   const participants = new Map<string, string[]>();
   for (const r of raw.planPeople) participants.set(r.plan_id, [...(participants.get(r.plan_id) ?? []), r.person_id]);
 
-  const visiblePlans = raw.plans.filter((p) => canSeePlan(p.visibility, participants.get(p.id) ?? [], viewer, mode));
+  // Unscheduled plans (start_at null) are the owner's backlog — never shown to viewers.
+  const visiblePlans = raw.plans.filter((p) => p.start_at != null && canSeePlan(p.visibility, participants.get(p.id) ?? [], viewer, mode));
   const visibleIds = new Set(visiblePlans.map((p) => p.id));
 
   const plans: SafePlan[] = visiblePlans.map((p) => ({

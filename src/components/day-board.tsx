@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useOptimistic, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { AlertTriangle, Check, EyeOff, MapPin, Plus } from "lucide-react";
+import { AlertTriangle, Building2, Camera, Check, EyeOff, MapPin, Plus } from "lucide-react";
 import { movePlanToDay, setPlanCompleted } from "@/app/actions";
 import { METHOD_ICON, type Method, type Payment } from "@/lib/commute";
 import { Money, useFx } from "./fx";
@@ -16,6 +16,8 @@ export type BoardPlan = {
   type: PlanType;
   title: string;
   location_name: string | null;
+  photographer_name?: string | null;
+  studio_name?: string | null;
   start_at: string;
   duration_min: number;
   visibility: Visibility;
@@ -87,7 +89,7 @@ export function DayBoard({
         <p className="text-xs text-muted md:hidden">{t("swipeHint")}</p>
         {failed && <p role="alert" className="text-xs text-danger">{t("saveFailed")}</p>}
       </div>
-      <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 md:snap-none">
+      <div data-sync="board" className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 md:snap-none">
         {columns.map((d) => {
           const list = (byDay.get(d) ?? []).sort((a, b) => a.start_at.localeCompare(b.start_at));
           const outside = !days.includes(d);
@@ -106,6 +108,7 @@ export function DayBoard({
           return (
             <div
               key={d}
+              data-col
               className={`card flex w-[86vw] max-w-[320px] shrink-0 snap-start flex-col sm:w-[280px] ${over === d ? "border-primary bg-primary-soft/40" : ""}`}
               onDragOver={(e) => { e.preventDefault(); setOver(d); }}
               onDragLeave={() => setOver((cur) => (cur === d ? null : cur))}
@@ -157,6 +160,12 @@ export function DayBoard({
                         <div className="mt-0.5 inline-block rounded-full px-2 text-[11px]" style={{ background: c.bg, color: c.fg }}>{t(`types.${p.type}`)}</div>
                         {p.location_name && (
                           <div className="mt-1 flex items-center gap-1 text-xs text-muted"><MapPin size={12} className="shrink-0" /><span className="truncate">{p.location_name}</span></div>
+                        )}
+                        {p.photographer_name && (
+                          <div className="mt-1 flex items-center gap-1 text-xs text-muted"><Camera size={12} className="shrink-0" /><span className="truncate">{p.photographer_name}</span></div>
+                        )}
+                        {p.studio_name && (
+                          <div className="mt-1 flex items-center gap-1 text-xs text-muted"><Building2 size={12} className="shrink-0" /><span className="truncate">{p.studio_name}</span></div>
                         )}
                         {p.cost != null && (
                           <div className="mt-1 text-xs tabular-nums text-muted"><Money amount={p.cost} currency={p.cost_currency} frozen={p.usd_frozen} /></div>

@@ -76,7 +76,7 @@ create table plans (
   title text not null,
   location_name text,
   location_address text,
-  start_at timestamptz not null,
+  start_at timestamptz,                                -- null = not scheduled yet (shown under "Unscheduled"; never counts as busy time)
   duration_min int not null default 60 check (duration_min >= 30),  -- plans: 30 min minimum
   cost numeric(12,2),
   cost_currency text,                                  -- null = trip currency
@@ -88,6 +88,7 @@ create table plans (
   character_name text,
   photographer_name text,                              -- cosplay_photoshoot only
   photographer_fee numeric(12,2),                      -- cosplay_photoshoot only (plan currency)
+  studio_name text,                                    -- cosplay_photoshoot only
   studio_fee numeric(12,2),                            -- cosplay_photoshoot only (plan currency)
   ics_token text not null unique default encode(gen_random_bytes(12),'hex'),  -- unguessable per-plan .ics link
   -- normal: per viewer rules | participants_only: only owner + listed participants (hidden from can_view_all viewers not on the plan)

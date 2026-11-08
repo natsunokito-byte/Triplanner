@@ -82,7 +82,7 @@ export default async function EditPlan({ params }: { params: Promise<{ id: strin
             people={(peopleRows ?? []) as Person[]}
             tz={trip.timezone}
             currency={trip.currency}
-            defaults={{ start: utcToLocal(plan.start_at, trip.timezone), type: plan.type }}
+            defaults={{ start: plan.start_at ? utcToLocal(plan.start_at, trip.timezone) : null, type: plan.type, fallbackStart: `${trip.start_date}T12:00` }}
             submitLabel={c("save")}
           />
         </div>
@@ -93,7 +93,7 @@ export default async function EditPlan({ params }: { params: Promise<{ id: strin
             d={{
               title: plan.title,
               typeLabel: t(`types.${plan.type}`),
-              when: `${utcToLocal(plan.start_at, trip.timezone).replace("T", " ")} · ${plan.duration_min} min`,
+              when: `${plan.start_at ? utcToLocal(plan.start_at, trip.timezone).replace("T", " ") : t("undatedShort")} · ${plan.duration_min} min`,
               location: plan.location_name,
               people: peopleList.filter((p) => !p.is_me && onPlan.has(p.id)).map((p) => p.name),
               note: plan.note,
@@ -105,10 +105,10 @@ export default async function EditPlan({ params }: { params: Promise<{ id: strin
           />
         </section>
 
-        {plan.visibility !== "owner_only" ? (
-          <InvitePanel plan={plan} tz={trip.timezone} tripTitle={trip.title} defaultLocale={trip.invite_locale} icsUrl={`${origin}/api/ics/${plan.ics_token}`} recipients={recipients} />
+        {plan.start_at && plan.visibility !== "owner_only" ? (
+          <InvitePanel plan={{ ...plan, start_at: plan.start_at }} tz={trip.timezone} tripTitle={trip.title} defaultLocale={trip.invite_locale} icsUrl={`${origin}/api/ics/${plan.ics_token}`} recipients={recipients} />
         ) : (
-          <p className="text-xs text-muted">{ti("privateNote")}</p>
+          <p className="text-xs text-muted">{plan.start_at ? ti("privateNote") : t("undatedNote")}</p>
         )}
 
         {plan.type === "cosplay_photoshoot" && (

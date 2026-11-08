@@ -58,7 +58,7 @@ export async function HotelTimeline({ trip, hotels, readOnly = false }: { trip: 
       </div>
 
       {hotels.length === 0 && !readOnly && <p className="text-xs text-muted">{t("noHotels")}</p>}
-      <div className="card overflow-x-auto">
+      <div className="card overflow-x-auto" data-sync="hotel" data-step={COL}>
         <div style={{ width }} className="relative">
           <div className="flex border-b border-border">
             {days.map((d) => (

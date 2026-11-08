@@ -224,7 +224,19 @@
     "catGeneral": "General",
     "addPlanTodo": "Add to-do",
     "copy": "Duplicate plan",
-    "copySuffix": "(copy)"
+    "copySuffix": "(copy)",
+    "undated": "Date not decided yet",
+    "undatedShort": "Unscheduled",
+    "undatedNote": "Unscheduled plans can't be invited or exported to a calendar; set a date first.",
+    "studioName": "Studio name",
+    "unscheduled": "Unscheduled",
+    "addUndated": "Add unscheduled plan",
+    "unscheduledEmpty": "No unscheduled plans.",
+    "hours": "{h} h",
+    "scheduleTo": "Schedule on",
+    "overviewTitle": "All plans",
+    "allTypes": "All types",
+    "overviewEmpty": "No matching plans."
   },
   "commute": {
     "methods": {

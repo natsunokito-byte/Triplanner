@@ -28,7 +28,7 @@ export function PlanForm({
   plan?: Plan;
   planPeople?: string[];
   people: Person[];
-  defaults: { start: string; type: PlanType };
+  defaults: { start: string | null; type: PlanType; fallbackStart: string };
   tz: string;
   currency: string;
   submitLabel: string;
@@ -36,6 +36,7 @@ export function PlanForm({
   categories?: { id: string; name: string }[];
 }) {
   const t = useTranslations("plan");
+  const [undated, setUndated] = useState(defaults.start == null);
   const [type, setType] = useState<PlanType>(plan?.type ?? defaults.type);
   const [visibility, setVisibility] = useState<Visibility>(plan?.visibility ?? "normal");
   const [hours, setHours] = useState(formatHours(plan?.duration_min ?? 60));
@@ -117,6 +118,10 @@ export function PlanForm({
             <label className="label" htmlFor="photographer_fee">{t("photographerFee")}</label>
             <input id="photographer_fee" name="photographer_fee" type="number" min="0" step="0.01" className="input" value={pFee} onChange={(e) => setPFee(e.target.value)} />
           </div>
+          <div className="col-span-2">
+            <label className="label" htmlFor="studio_name">{t("studioName")}</label>
+            <input id="studio_name" name="studio_name" className="input" maxLength={120} defaultValue={plan?.studio_name ?? ""} />
+          </div>
           <div>
             <label className="label" htmlFor="studio_fee">{t("studioFee")}</label>
             <input id="studio_fee" name="studio_fee" type="number" min="0" step="0.01" className="input" value={sFee} onChange={(e) => setSFee(e.target.value)} />
@@ -138,7 +143,10 @@ export function PlanForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label" htmlFor="start">{t("start")}</label>
-          <input id="start" name="start" type="datetime-local" className="input" required defaultValue={defaults.start} />
+          <input id="start" name="start" type="datetime-local" className="input" required={!undated} disabled={undated} defaultValue={defaults.start ?? defaults.fallbackStart} />
+          <label className="mt-1 flex items-center gap-2 text-xs text-muted">
+            <input type="checkbox" name="undated" checked={undated} onChange={(e) => setUndated(e.target.checked)} /> {t("undated")}
+          </label>
         </div>
         <div>
           <label className="label" htmlFor="duration_h">{t("duration")}</label>

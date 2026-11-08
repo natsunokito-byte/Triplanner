@@ -305,12 +305,13 @@ const planSchema = z.object({
   title: z.string().trim().min(1).max(160),
   location_name: optText(200),
   location_address: optText(300),
-  start: localDt,
+  start: localDt.nullable(), // null = not scheduled yet
   duration_min: z.coerce.number().int().min(30).max(2880),
   cost_items: z
     .array(z.object({ label: z.string().trim().min(1).max(80), amount: z.number().min(0).max(1e9), per_hour: z.boolean() }))
     .max(30),
   photographer_name: optText(120),
+  studio_name: optText(120),
   photographer_fee: z.string().trim().transform((s) => (s === "" ? null : Number(s))).pipe(z.number().min(0).max(1e9).nullable()),
   studio_fee: z.string().trim().transform((s) => (s === "" ? null : Number(s))).pipe(z.number().min(0).max(1e9).nullable()),
   new_todos: z.array(z.object({ title: z.string().trim().min(1).max(200), cat: z.string().max(60) })).max(30),
@@ -346,10 +347,11 @@ async function parsePlan(supabase: Awaited<ReturnType<typeof createClient>>, tri
     title: fd.get("title"),
     location_name: String(fd.get("location_name") ?? ""),
     location_address: String(fd.get("location_address") ?? ""),
-    start: fd.get("start"),
+    start: fd.get("undated") === "on" ? null : fd.get("start"),
     duration_min: fd.get("duration_min"),
     cost_items: jsonField("cost_items"),
     photographer_name: String(fd.get("photographer_name") ?? ""),
+    studio_name: String(fd.get("studio_name") ?? ""),
     photographer_fee: String(fd.get("photographer_fee") ?? ""),
     studio_fee: String(fd.get("studio_fee") ?? ""),
     new_todos: jsonField("new_todos"),
@@ -372,11 +374,12 @@ async function parsePlan(supabase: Awaited<ReturnType<typeof createClient>>, tri
     values: {
       ...rest,
       photographer_name: isCosplay ? rest.photographer_name : null,
+      studio_name: isCosplay ? rest.studio_name : null,
       photographer_fee,
       studio_fee,
       // plans.cost is always the computed total (server-side; the client preview is advisory only)
       cost: planTotal({ items: cost_items, durationMin: rest.duration_min, photographerFee: photographer_fee, studioFee: studio_fee }),
-      start_at: localToUtc(start, trip.timezone).toISOString(),
+      start_at: start ? localToUtc(start, trip.timezone).toISOString() : null,
       cost_currency: sameCur ? null : rest.cost_currency,
       fx_rate_to_trip: sameCur ? null : rest.fx_rate_to_trip,
       character_name: rest.type === "cosplay_photoshoot" ? rest.character_name : null,
@@ -495,9 +498,10 @@ export async function movePlanToDay(tripId: string, planId: string, date: string
     supabase.from("plans").select("start_at").eq("id", planId).eq("trip_id", tripId).single(),
   ]);
   if (!trip || !plan) throw new Error("not found");
-  if (localDate(plan.start_at, trip.timezone) === date) return;
-  const local = utcToLocal(plan.start_at, trip.timezone);
-  const start_at = localToUtc(`${date}T${local.slice(11)}`, trip.timezone).toISOString();
+  // Unscheduled plans get a default 12:00 start on the chosen day.
+  if (plan.start_at && localDate(plan.start_at, trip.timezone) === date) return;
+  const time = plan.start_at ? utcToLocal(plan.start_at, trip.timezone).slice(11) : "12:00";
+  const start_at = localToUtc(`${date}T${time}`, trip.timezone).toISOString();
   const { error } = await supabase.from("plans").update({ start_at }).eq("id", planId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
   revalidatePath(`/t/${tripId}`);

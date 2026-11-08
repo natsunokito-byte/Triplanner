@@ -25,7 +25,7 @@ export async function loadBusy(db: SupabaseClient, tripId: string): Promise<Inte
     db.from("hotels").select("check_in,check_out").eq("trip_id", tripId),
   ]);
   const out: Interval[] = [];
-  for (const p of plans ?? []) { const s = Date.parse(p.start_at); out.push({ start: s, end: s + p.duration_min * MIN }); }
+  for (const p of plans ?? []) { if (!p.start_at) continue; /* unscheduled plans are never busy */ const s = Date.parse(p.start_at); out.push({ start: s, end: s + p.duration_min * MIN }); }
   for (const c of commutes ?? []) { const s = Date.parse(c.start_at); if (Number.isFinite(s)) out.push({ start: s, end: s + (c.duration_min ?? 0) * MIN }); }
   for (const b of blocks ?? []) out.push({ start: Date.parse(b.start_at), end: Date.parse(b.end_at) });
   for (const h of hotels ?? []) {

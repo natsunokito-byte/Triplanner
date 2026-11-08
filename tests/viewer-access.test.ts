@@ -149,3 +149,19 @@ test("M13: photographer/studio fees and cost items never reach viewers", async (
   assert.ok(!json.includes("SECRET-PHOTOG"));
   assert.ok(!json.includes("photographer_fee") && !json.includes("studio_fee"));
 });
+
+test("M14: unscheduled plans (start_at null) are never shown to viewers", () => {
+  const raw = {
+    trip: { title: "T", start_date: "2026-11-07", end_date: "2026-11-09", timezone: "Asia/Tokyo", currency: "JPY", destinations: [], viewers_see_costs: true, usd_rate_override: null },
+    plans: [{
+      id: "p1", type: "task", title: "Backlog", location_name: null, location_address: null, start_at: null,
+      duration_min: 60, cost: null, cost_currency: null, usd_per_unit_at_completion: null, link: null, note: null, character_name: null,
+      visibility: "normal", completed: false,
+    }],
+    planPeople: [{ plan_id: "p1", person_id: "a" }],
+    people: [{ id: "a", name: "A", color: null, is_me: false }],
+    hotels: [], commutes: [], photos: [],
+  };
+  const out = shapeForViewer(raw as never, { personId: "a", role: "full" }, "all");
+  assert.equal(out.plans.length, 0);
+});

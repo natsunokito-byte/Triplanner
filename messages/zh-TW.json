@@ -224,7 +224,19 @@
     "catGeneral": "一般",
     "addPlanTodo": "新增待辦",
     "copy": "複製行程",
-    "copySuffix": "（複製）"
+    "copySuffix": "（複製）",
+    "undated": "尚未決定日期",
+    "undatedShort": "未排日期",
+    "undatedNote": "尚未排日期的行程無法邀請或匯出行事曆；排定日期後才會出現。",
+    "studioName": "攝影棚名稱",
+    "unscheduled": "未排日期",
+    "addUndated": "新增未排日期行程",
+    "unscheduledEmpty": "沒有未排日期的行程。",
+    "hours": "{h} 小時",
+    "scheduleTo": "排到日期",
+    "overviewTitle": "行程一覽",
+    "allTypes": "全部類型",
+    "overviewEmpty": "沒有符合的行程。"
   },
   "commute": {
     "methods": {
