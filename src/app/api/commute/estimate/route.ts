@@ -51,8 +51,9 @@ export async function POST(req: Request) {
     travelMode,
     units: "METRIC",
   };
-  // Transit/drive can use a departure time, but only if it is in the future.
-  if (departureTime && (travelMode === "TRANSIT" || travelMode === "DRIVE") && Date.parse(departureTime) > Date.now() + 60_000) {
+  // Only transit takes a departure time here (and only in the future). DRIVE without a traffic-aware
+  // routingPreference rejects it ("Timestamp cannot be set for TRAFFIC_UNAWARE routing mode").
+  if (departureTime && travelMode === "TRANSIT" && Date.parse(departureTime) > Date.now() + 60_000) {
     payload.departureTime = departureTime;
   }
 
