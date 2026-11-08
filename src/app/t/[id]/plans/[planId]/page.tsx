@@ -12,12 +12,14 @@ import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
 import { addPlanTodo, deletePlan, duplicatePlan, deletePlanTodo, setPlanCompleted, togglePlanTodo, updatePlan } from "@/app/actions";
 import { headers } from "next/headers";
+import { safeBack, hhmm } from "@/lib/schedule";
 import { fmtMoney } from "@/lib/money";
 import { utcToLocal } from "@/lib/tz";
 import type { Person, Plan, Todo, Trip } from "@/lib/types";
 
-export default async function EditPlan({ params }: { params: Promise<{ id: string; planId: string }> }) {
+export default async function EditPlan({ params, searchParams }: { params: Promise<{ id: string; planId: string }>; searchParams: Promise<{ back?: string }> }) {
   const { id, planId } = await params;
+  const back = safeBack(id, (await searchParams).back, `/t/${id}`);
   const t = await getTranslations("plan");
   const c = await getTranslations("common");
   const ti = await getTranslations("invite");
@@ -57,7 +59,7 @@ export default async function EditPlan({ params }: { params: Promise<{ id: strin
     <>
       <AppHeader />
       <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8 space-y-6">
-        <Link href={`/t/${id}`} className="inline-flex items-center gap-1 text-muted hover:text-text"><ArrowLeft size={14} /> {c("back")}</Link>
+        <Link href={back} className="inline-flex items-center gap-1 text-muted hover:text-text"><ArrowLeft size={14} /> {c("back")}</Link>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">{t("editTitle")}</h1>
           <div className="flex gap-2">
@@ -82,7 +84,12 @@ export default async function EditPlan({ params }: { params: Promise<{ id: strin
             people={(peopleRows ?? []) as Person[]}
             tz={trip.timezone}
             currency={trip.currency}
-            defaults={{ start: plan.start_at ? utcToLocal(plan.start_at, trip.timezone) : null, type: plan.type, fallbackStart: `${trip.start_date}T12:00` }}
+            defaults={{
+              date: plan.start_at ? utcToLocal(plan.start_at, trip.timezone).slice(0, 10) : plan.plan_date,
+              time: plan.start_at ? utcToLocal(plan.start_at, trip.timezone).slice(11, 16) : hhmm(plan.plan_time),
+              type: plan.type,
+            }}
+            back={back}
             submitLabel={c("save")}
           />
         </div>
@@ -93,7 +100,7 @@ export default async function EditPlan({ params }: { params: Promise<{ id: strin
             d={{
               title: plan.title,
               typeLabel: t(`types.${plan.type}`),
-              when: `${plan.start_at ? utcToLocal(plan.start_at, trip.timezone).replace("T", " ") : t("undatedShort")} · ${plan.duration_min} min`,
+              when: `${plan.start_at ? utcToLocal(plan.start_at, trip.timezone).replace("T", " ") : [plan.plan_date, hhmm(plan.plan_time)].filter(Boolean).join(" ") || t("unscheduledShort")} · ${plan.duration_min} min`,
               location: plan.location_name,
               people: peopleList.filter((p) => !p.is_me && onPlan.has(p.id)).map((p) => p.name),
               note: plan.note,
@@ -152,7 +159,7 @@ export default async function EditPlan({ params }: { params: Promise<{ id: strin
         </section>
 
         <section className="card border-danger/40 p-5">
-          <form action={deletePlan.bind(null, id, planId)}>
+          <form action={deletePlan.bind(null, id, planId, back)}>
             <ConfirmButton className="btn-danger" message={t("deleteConfirm")}>{t("deletePlan")}</ConfirmButton>
           </form>
         </section>

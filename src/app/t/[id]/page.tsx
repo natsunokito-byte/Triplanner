@@ -9,6 +9,7 @@ import { ScrollSync } from "@/components/scroll-sync";
 import { UnscheduledList } from "@/components/unscheduled-list";
 import { HotelTimeline } from "@/components/hotel-timeline";
 import { DayBoard, type BoardPlan } from "@/components/day-board";
+import { hhmm, isUnscheduled } from "@/lib/schedule";
 import { eachDay } from "@/lib/tz";
 import { getLatestRates } from "@/lib/fx";
 import { CurrencyToggle, FxProvider } from "@/components/fx";
@@ -30,11 +31,12 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
   const tr = await getTranslations("requests");
   const { data: hotelRows } = await supabase.from("hotels").select("*").eq("trip_id", id).order("check_in");
   const hotels = (hotelRows ?? []) as Hotel[];
-  const [{ data: planRows }, { data: peopleRows }, { data: ppRows }, { data: commuteRows }] = await Promise.all([
+  const [{ data: planRows }, { data: peopleRows }, { data: ppRows }, { data: commuteRows }, { data: stopRows }] = await Promise.all([
     supabase.from("plans").select("*").eq("trip_id", id).order("start_at"),
     supabase.from("people").select("id,name").eq("trip_id", id),
     supabase.from("plan_people").select("plan_id,person_id"),
     supabase.from("commutes").select("*").eq("trip_id", id),
+    supabase.from("commute_stops").select("commute_id,label,stay_min").order("position"),
   ]);
   const commutes = (commuteRows ?? []) as Commute[];
   const plansAll = (planRows ?? []) as Plan[];
@@ -45,8 +47,8 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
     ...commutes.map((x) => x.cost_currency),
   ].filter((x): x is string => !!x));
   const nameOf = new Map((peopleRows ?? []).map((p) => [p.id as string, p.name as string]));
-  const boardPlans: BoardPlan[] = ((planRows ?? []) as Plan[]).filter((p) => p.start_at != null).map((p) => ({
-    id: p.id, type: p.type, title: p.title, location_name: p.location_name, start_at: p.start_at as string,
+  const boardPlans: BoardPlan[] = ((planRows ?? []) as Plan[]).filter((p) => !isUnscheduled(p)).map((p) => ({
+    id: p.id, type: p.type, title: p.title, location_name: p.location_name, start_at: p.start_at, plan_date: p.plan_date,
     photographer_name: p.photographer_name, studio_name: p.studio_name,
     duration_min: p.duration_min, visibility: p.visibility, completed: p.completed,
     cost: p.cost == null ? null : Number(p.cost), cost_currency: p.cost_currency, usd_frozen: p.usd_per_unit_at_completion == null ? null : Number(p.usd_per_unit_at_completion),
@@ -78,12 +80,12 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
         <ScrollSync />
-        <DayBoard tripId={id} tz={trip.timezone} days={eachDay(trip.start_date, trip.end_date)} plans={boardPlans} commutes={commutes.map(({ id, from_plan_id, to_plan_id, method, start_at, duration_min, cost, cost_currency, payment }) => ({ id, from_plan_id, to_plan_id, method, start_at, duration_min, cost: cost == null ? null : Number(cost), cost_currency, payment }))} currency={trip.currency} />
+        <DayBoard tripId={id} tz={trip.timezone} days={eachDay(trip.start_date, trip.end_date)} plans={boardPlans} commutes={commutes.map(({ id, from_plan_id, to_plan_id, method, start_at, duration_min, cost, cost_currency, payment }) => ({ id, from_plan_id, to_plan_id, method, start_at, duration_min, cost: cost == null ? null : Number(cost), cost_currency, payment, stops: (stopRows ?? []).filter((x) => x.commute_id === id).map((x) => ({ label: x.label as string, stay_min: x.stay_min as number })) }))} currency={trip.currency} />
         <HotelTimeline trip={trip} hotels={hotels} />
         <UnscheduledList
           tripId={id}
           days={eachDay(trip.start_date, trip.end_date)}
-          plans={plansAll.filter((p) => p.start_at == null).map((p) => ({ id: p.id, type: p.type, title: p.title, duration_min: p.duration_min, location_name: p.location_name }))}
+          plans={plansAll.filter((p) => isUnscheduled(p)).map((p) => ({ id: p.id, type: p.type, title: p.title, duration_min: p.duration_min, location_name: p.location_name, plan_time: hhmm(p.plan_time) }))}
         />
       </main>
     </FxProvider>

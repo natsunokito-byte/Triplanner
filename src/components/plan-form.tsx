@@ -21,6 +21,7 @@ export function PlanForm({
   tz,
   currency,
   submitLabel,
+  back,
   costItems = [],
   categories = [],
 }: {
@@ -28,15 +29,15 @@ export function PlanForm({
   plan?: Plan;
   planPeople?: string[];
   people: Person[];
-  defaults: { start: string | null; type: PlanType; fallbackStart: string };
+  defaults: { date: string | null; time: string | null; type: PlanType };
   tz: string;
   currency: string;
   submitLabel: string;
+  back?: string;
   costItems?: { label: string; amount: number; per_hour: boolean }[];
   categories?: { id: string; name: string }[];
 }) {
   const t = useTranslations("plan");
-  const [undated, setUndated] = useState(defaults.start == null);
   const [type, setType] = useState<PlanType>(plan?.type ?? defaults.type);
   const [visibility, setVisibility] = useState<Visibility>(plan?.visibility ?? "normal");
   const [hours, setHours] = useState(formatHours(plan?.duration_min ?? 60));
@@ -74,6 +75,7 @@ export function PlanForm({
 
   return (
     <form action={action} className="space-y-5">
+      {back && <input type="hidden" name="back" value={back} />}
       <fieldset>
         <legend className="label">{t("type")}</legend>
         <input type="hidden" name="type" value={type} />
@@ -142,12 +144,14 @@ export function PlanForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label" htmlFor="start">{t("start")}</label>
-          <input id="start" name="start" type="datetime-local" className="input" required={!undated} disabled={undated} defaultValue={defaults.start ?? defaults.fallbackStart} />
-          <label className="mt-1 flex items-center gap-2 text-xs text-muted">
-            <input type="checkbox" name="undated" checked={undated} onChange={(e) => setUndated(e.target.checked)} /> {t("undated")}
-          </label>
+          <label className="label" htmlFor="date">{t("date")}</label>
+          <input id="date" name="date" type="date" className="input" defaultValue={defaults.date ?? ""} />
         </div>
+        <div>
+          <label className="label" htmlFor="time">{t("time")}</label>
+          <input id="time" name="time" type="time" className="input" defaultValue={defaults.time ?? ""} />
+        </div>
+        <p className="col-span-2 -mt-1 text-xs text-muted">{t("scheduleHint")}</p>
         <div>
           <label className="label" htmlFor="duration_h">{t("duration")}</label>
           <input id="duration_h" type="number" min={0.5} max={48} step={0.5} className="input" required value={hours} onChange={(e) => setHours(e.target.value)} />

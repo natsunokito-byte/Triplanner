@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PLAN_ICON, PLAN_TYPES, ptVars, type PlanType } from "@/lib/plan-types";
 import { formatHours } from "@/lib/cost";
 import { fmtMoney } from "@/lib/money";
+import { hhmm, isUnscheduled, schedState } from "@/lib/schedule";
 import { localDate, utcToLocal } from "@/lib/tz";
 import type { Plan, Trip } from "@/lib/types";
 
@@ -42,12 +43,17 @@ export default async function PlanOverview({
     return `/t/${id}/plans${q ? `?types=${q}` : ""}`;
   };
   const shown = active.size ? all.filter((p) => active.has(p.type)) : all;
-  const dated = shown.filter((p) => p.start_at);
-  const undated = shown.filter((p) => !p.start_at);
+  const dated = shown.filter((p) => !isUnscheduled(p));
+  const undated = shown.filter((p) => isUnscheduled(p));
+  // Link back here (with the current filter) from anything opened from this page.
+  const here = `/t/${id}/plans${active.size ? `?types=${[...active].join(",")}` : ""}`;
+  const q = (extra: Record<string, string>) => new URLSearchParams({ ...extra, back: here }).toString();
+  // Exactly one type selected -> new plans start with that type.
+  const newType: Record<string, string> = active.size === 1 ? { type: [...active][0] } : {};
 
   const byDay = new Map<string, Plan[]>();
   for (const p of dated) {
-    const d = localDate(p.start_at!, trip.timezone);
+    const d = p.start_at ? localDate(p.start_at, trip.timezone) : p.plan_date!;
     byDay.set(d, [...(byDay.get(d) ?? []), p]);
   }
   const dayFmt = new Intl.DateTimeFormat(locale, { month: "numeric", day: "numeric", weekday: "short", timeZone: "UTC" });
@@ -58,15 +64,16 @@ export default async function PlanOverview({
     return (
       <li>
         <Link
-          href={`/t/${id}/plans/${p.id}`}
+          href={`/t/${id}/plans/${p.id}?${q({})}`}
           className={`flex items-start gap-3 rounded-[8px] border border-border bg-surface p-3 hover:shadow-[var(--shadow-2)] ${p.completed ? "opacity-60" : ""}`}
           style={{ borderLeft: `4px solid ${col.dot}` }}
         >
           <Icon size={18} style={{ color: col.fg }} className="mt-0.5 shrink-0" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 text-xs tabular-nums text-muted">
-              {p.start_at ? utcToLocal(p.start_at, trip.timezone).slice(11, 16) : t("undatedShort")} · {t("hours", { h: formatHours(p.duration_min) })}
+              {p.start_at ? utcToLocal(p.start_at, trip.timezone).slice(11, 16) : t("noTime")} · {t("hours", { h: formatHours(p.duration_min) })}
               <span className="rounded-full px-2 text-[11px]" style={{ background: col.bg, color: col.fg }}>{t(`types.${p.type}`)}</span>
+              {schedState(p) !== "full" && schedState(p) !== "dateOnly" && <span className="rounded-full bg-surface-2 px-2 text-[11px]">{p.plan_time ? t("noDateHasTime", { time: hhmm(p.plan_time)! }) : t("noDateNoTime")}</span>}
             </div>
             <div className={`font-semibold ${p.completed ? "line-through" : ""}`}>{p.title}</div>
             {p.location_name && <div className="flex items-center gap-1 text-xs text-muted"><MapPin size={12} />{p.location_name}</div>}
@@ -92,8 +99,8 @@ export default async function PlanOverview({
             <h1 className="mt-1 text-[28px] font-semibold leading-tight">{trip.title} · {t("overviewTitle")}</h1>
           </div>
           <div className="flex gap-2">
-            <Link href={`/t/${id}/plans/new`} className="btn btn-sm btn-primary"><Plus size={14} /> {t("add")}</Link>
-            <Link href={`/t/${id}/plans/new?undated=1`} className="btn btn-sm"><Plus size={14} /> {t("addUndated")}</Link>
+            <Link href={`/t/${id}/plans/new?${q(newType)}`} className="btn btn-sm btn-primary"><Plus size={14} /> {t("add")}</Link>
+            <Link href={`/t/${id}/plans/new?${q({ ...newType, undated: "1" })}`} className="btn btn-sm"><Plus size={14} /> {t("addUndated")}</Link>
           </div>
         </div>
 

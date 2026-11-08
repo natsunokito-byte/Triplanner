@@ -225,9 +225,7 @@
     "addPlanTodo": "Add to-do",
     "copy": "Duplicate plan",
     "copySuffix": "(copy)",
-    "undated": "Date not decided yet",
-    "undatedShort": "Unscheduled",
-    "undatedNote": "Unscheduled plans can't be invited or exported to a calendar; set a date first.",
+    "undatedNote": "Unscheduled plans (no date) can't be invited or exported to a calendar; set a date and time first.",
     "studioName": "Studio name",
     "unscheduled": "Unscheduled",
     "addUndated": "Add unscheduled plan",
@@ -236,7 +234,16 @@
     "scheduleTo": "Schedule on",
     "overviewTitle": "All plans",
     "allTypes": "All types",
-    "overviewEmpty": "No matching plans."
+    "overviewEmpty": "No matching plans.",
+    "unscheduledShort": "Unscheduled",
+    "date": "Date (optional)",
+    "time": "Time (optional)",
+    "scheduleHint": "Leave date and/or time empty for now: date only = that day's \"Time TBD\"; time only = Unscheduled until you pick a day.",
+    "timeTbd": "Time TBD",
+    "copyHere": "Copy to the same day (time TBD)",
+    "noDateHasTime": "No date · {time}",
+    "noDateNoTime": "No date, no time",
+    "noTime": "No time"
   },
   "commute": {
     "methods": {
@@ -292,7 +299,16 @@
     "tzNote": "Times are in trip local time ({tz})",
     "googleSrc": "Source: Google estimate",
     "unknownPlace": "(unnamed place)",
-    "min": "{n} min"
+    "min": "{n} min",
+    "stops": "Stopovers",
+    "stopPh": "Stop, e.g. Shinjuku Station, convenience store",
+    "stopLabel": "Stop",
+    "stopStay": "Stay (min)",
+    "removeStop": "Remove stop",
+    "addStop": "Add stopover",
+    "stayTotal": "Total stay {n} min",
+    "stopsHint": "Right box = minutes you stay. Estimate sums each leg's travel time; stays are extra and count as busy time.",
+    "stopsCount": "{n} stops"
   },
   "fx": {
     "showIn": "Display currency",

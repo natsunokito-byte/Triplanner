@@ -16,10 +16,11 @@ export default async function EditCommute({ params }: { params: Promise<{ id: st
   const t = await getTranslations("commute");
   const c = await getTranslations("common");
   const supabase = await createClient();
-  const [{ data: tripRow }, { data: cRow }, { data: todoRows }] = await Promise.all([
+  const [{ data: tripRow }, { data: cRow }, { data: todoRows }, { data: stopRows }] = await Promise.all([
     supabase.from("trips").select("*").eq("id", id).maybeSingle(),
     supabase.from("commutes").select("*").eq("id", commuteId).eq("trip_id", id).maybeSingle(),
     supabase.from("todos").select("*").eq("commute_id", commuteId).order("done").order("title"),
+    supabase.from("commute_stops").select("label,stay_min").eq("commute_id", commuteId).order("position"),
   ]);
   if (!tripRow || !cRow) notFound();
   const trip = tripRow as Trip;
@@ -37,6 +38,7 @@ export default async function EditCommute({ params }: { params: Promise<{ id: st
           <CommuteForm
             action={updateCommute.bind(null, id, commuteId)}
             commute={commute}
+            initialStops={((stopRows ?? []) as { label: string; stay_min: number }[])}
             fromPlanId={commute.from_plan_id}
             toPlanId={commute.to_plan_id}
             defaults={{

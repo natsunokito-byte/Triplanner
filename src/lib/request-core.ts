@@ -20,13 +20,18 @@ export type AvailTrip = {
 export async function loadBusy(db: SupabaseClient, tripId: string): Promise<Interval[]> {
   const [{ data: plans }, { data: commutes }, { data: blocks }, { data: hotels }] = await Promise.all([
     db.from("plans").select("start_at,duration_min").eq("trip_id", tripId),
-    db.from("commutes").select("start_at,duration_min").eq("trip_id", tripId),
+    db.from("commutes").select("id,start_at,duration_min").eq("trip_id", tripId),
     db.from("availability_blocks").select("start_at,end_at").eq("trip_id", tripId),
     db.from("hotels").select("check_in,check_out").eq("trip_id", tripId),
   ]);
+  const commuteIds = (commutes ?? []).map((c) => c.id as string);
+  const { data: stopRows } = commuteIds.length ? await db.from("commute_stops").select("commute_id,stay_min").in("commute_id", commuteIds) : { data: [] as { commute_id: string; stay_min: number }[] };
+  // Stopover stays keep the owner busy too (travel + stays).
+  const stay = new Map<string, number>();
+  for (const x of stopRows ?? []) stay.set(x.commute_id, (stay.get(x.commute_id) ?? 0) + (x.stay_min ?? 0));
   const out: Interval[] = [];
   for (const p of plans ?? []) { if (!p.start_at) continue; /* unscheduled plans are never busy */ const s = Date.parse(p.start_at); out.push({ start: s, end: s + p.duration_min * MIN }); }
-  for (const c of commutes ?? []) { const s = Date.parse(c.start_at); if (Number.isFinite(s)) out.push({ start: s, end: s + (c.duration_min ?? 0) * MIN }); }
+  for (const c of commutes ?? []) { const s = Date.parse(c.start_at); if (Number.isFinite(s)) out.push({ start: s, end: s + ((c.duration_min ?? 0) + (stay.get(c.id) ?? 0)) * MIN }); }
   for (const b of blocks ?? []) out.push({ start: Date.parse(b.start_at), end: Date.parse(b.end_at) });
   for (const h of hotels ?? []) {
     const ci = Date.parse(h.check_in), co = Date.parse(h.check_out);

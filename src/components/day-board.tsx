@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useMemo, useOptimistic, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { AlertTriangle, Building2, Camera, Check, EyeOff, MapPin, Plus } from "lucide-react";
-import { movePlanToDay, setPlanCompleted } from "@/app/actions";
+import type { LucideIcon } from "lucide-react";
+import { AlertTriangle, Building2, Camera, Check, Copy, EyeOff, MapPin, Plus } from "lucide-react";
+import { duplicatePlanToSameDay, movePlanToDay, setPlanCompleted } from "@/app/actions";
 import { METHOD_ICON, type Method, type Payment } from "@/lib/commute";
 import { Money, useFx } from "./fx";
 import { toTrip } from "@/lib/money";
@@ -18,7 +19,8 @@ export type BoardPlan = {
   location_name: string | null;
   photographer_name?: string | null;
   studio_name?: string | null;
-  start_at: string;
+  start_at: string | null; // null = date known, time TBD (plan_date)
+  plan_date: string | null;
   duration_min: number;
   visibility: Visibility;
   completed: boolean;
@@ -31,6 +33,7 @@ export type BoardPlan = {
 export type BoardCommute = {
   id: string; from_plan_id: string | null; to_plan_id: string | null; method: Method; start_at: string;
   duration_min: number; cost: number | null; cost_currency: string | null; payment: Payment | null;
+  stops: { label: string; stay_min: number }[];
 };
 
 export function DayBoard({
@@ -49,6 +52,7 @@ export function DayBoard({
     state.map((p) => {
       if (p.id !== m.id) return p;
       if (m.kind === "complete") return { ...p, completed: m.completed };
+      if (!p.start_at) return { ...p, plan_date: m.date };
       return { ...p, start_at: localToUtc(`${m.date}T${utcToLocal(p.start_at, tz).slice(11)}`, tz).toISOString() };
     }),
   );
@@ -59,7 +63,8 @@ export function DayBoard({
 
   const byDay = new Map<string, BoardPlan[]>();
   for (const p of optPlans) {
-    const k = localDate(p.start_at, tz);
+    const k = p.start_at ? localDate(p.start_at, tz) : p.plan_date;
+    if (!k) continue;
     byDay.set(k, [...(byDay.get(k) ?? []), p]);
   }
   // Plans outside the trip range still get a column so nothing is hidden.
@@ -74,6 +79,13 @@ export function DayBoard({
     });
   }
 
+  function copyHere(id: string) {
+    setFailed(false);
+    startTransition(async () => {
+      try { await duplicatePlanToSameDay(tripId, id); } catch { setFailed(true); }
+    });
+  }
+
   function toggle(id: string, completed: boolean) {
     setFailed(false);
     startTransition(async () => {
@@ -82,68 +94,10 @@ export function DayBoard({
     });
   }
 
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="hidden text-xs text-muted md:block">{t("dragHint")}</p>
-        <p className="text-xs text-muted md:hidden">{t("swipeHint")}</p>
-        {failed && <p role="alert" className="text-xs text-danger">{t("saveFailed")}</p>}
-      </div>
-      <div data-sync="board" className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 md:snap-none">
-        {columns.map((d) => {
-          const list = (byDay.get(d) ?? []).sort((a, b) => a.start_at.localeCompare(b.start_at));
-          const outside = !days.includes(d);
-          let prevEnd = 0;
-          let total = 0;
-          let hasTotal = false;
-          if (fx) {
-            const add = (amount: number | null, cur: string | null, frozen: number | null) => {
-              if (amount == null) return;
-              const v = toTrip(fx.ctx, amount, cur ?? fx.ctx.tripCurrency, frozen);
-              if (v != null) { total += v; hasTotal = true; }
-            };
-            for (const p of list) add(p.cost, p.cost_currency, p.usd_frozen);
-            for (const x of commutes) if (localDate(x.start_at, tz) === d) add(x.cost, x.cost_currency, null);
-          }
-          return (
-            <div
-              key={d}
-              data-col
-              className={`card flex w-[86vw] max-w-[320px] shrink-0 snap-start flex-col sm:w-[280px] ${over === d ? "border-primary bg-primary-soft/40" : ""}`}
-              onDragOver={(e) => { e.preventDefault(); setOver(d); }}
-              onDragLeave={() => setOver((cur) => (cur === d ? null : cur))}
-              onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData("text/plain"); if (id) drop(d, id); }}
-            >
-              <div className="sticky top-0 flex items-center justify-between rounded-t-[12px] border-b border-border bg-surface px-3 py-2">
-                <div>
-                  <span className="font-semibold">{md.format(new Date(d))}</span>{" "}
-                  <span className="text-xs text-muted">{wd.format(new Date(d))}</span>
-                  {outside && <div className="text-[11px] text-warning">{t("outside")}</div>}
-                  {hasTotal && fx && (
-                    <div className="text-[11px] tabular-nums text-muted">{tf("dayTotal")} <Money amount={total} currency={fx.ctx.tripCurrency} /></div>
-                  )}
-                </div>
-                <Link href={`/t/${tripId}/plans/new?date=${d}`} className="btn btn-sm !h-7 !px-2" aria-label={t("add")}><Plus size={14} /></Link>
-              </div>
-
-              <ul className="flex flex-1 flex-col gap-2 p-2">
-                {list.length === 0 && <li className="py-6 text-center text-xs text-muted">{t("dayEmpty")}</li>}
-                {list.map((p, idx) => {
-                  const next = list[idx + 1];
-                  const link = next ? commutes.find((x) => x.from_plan_id === p.id && x.to_plan_id === next.id) : undefined;
-                  const CIcon = link ? METHOD_ICON[link.method] : null;
-                  const Icon = PLAN_ICON[p.type];
-                  const c = ptVars(p.type);
-                  const startMs = Date.parse(p.start_at);
-                  const endMs = startMs + p.duration_min * 60000;
-                  const overlap = prevEnd > startMs;
-                  prevEnd = Math.max(prevEnd, endMs);
-                  return (
-                    <li key={p.id}>
-                      {overlap && (
-                        <div className="mb-1 flex items-center gap-1 text-[11px] text-warning"><AlertTriangle size={12} /> {t("overlap")}</div>
-                      )}
-                      <div className="relative">
+  function renderCard(p: BoardPlan, d: string, Icon: LucideIcon, c: ReturnType<typeof ptVars>, timeLabel: string) {
+    return (
+      <>
+                      <div className="group relative">
                       <Link
                         href={`/t/${tripId}/plans/${p.id}`}
                         draggable
@@ -153,7 +107,7 @@ export function DayBoard({
                       >
                         <div className="flex items-center gap-1 text-xs tabular-nums text-muted">
                           <Icon size={13} style={{ color: c.fg }} />
-                          {hm.format(startMs)}–{hm.format(endMs)}
+                          {timeLabel}
                           {p.visibility !== "normal" && <EyeOff size={12} className="ml-auto" aria-label={t("private")} />}
                         </div>
                         <div className={`mt-0.5 font-semibold leading-snug ${p.completed ? "line-through" : ""}`}>{p.title}</div>
@@ -188,6 +142,15 @@ export function DayBoard({
                       >
                         <Check size={14} />
                       </button>
+                      <button
+                        type="button"
+                        aria-label={t("copyHere")}
+                        title={t("copyHere")}
+                        onClick={() => copyHere(p.id)}
+                        className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface text-muted transition-opacity hover:text-primary focus:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                      >
+                        <Copy size={13} />
+                      </button>
                       </div>
                       <div className="mt-1 md:hidden">
                         <select
@@ -199,6 +162,74 @@ export function DayBoard({
                           {columns.map((col) => <option key={col} value={col}>{t("moveTo")}: {md.format(new Date(col))} {wd.format(new Date(col))}</option>)}
                         </select>
                       </div>
+      </>
+    );
+  }
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="hidden text-xs text-muted md:block">{t("dragHint")}</p>
+        <p className="text-xs text-muted md:hidden">{t("swipeHint")}</p>
+        {failed && <p role="alert" className="text-xs text-danger">{t("saveFailed")}</p>}
+      </div>
+      <div data-sync="board" className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 md:snap-none">
+        {columns.map((d) => {
+          const dayPlans = byDay.get(d) ?? [];
+          const list = dayPlans.filter((p) => p.start_at).sort((a, b) => a.start_at!.localeCompare(b.start_at!));
+          const tbd = dayPlans.filter((p) => !p.start_at);
+          const outside = !days.includes(d);
+          let prevEnd = 0;
+          let total = 0;
+          let hasTotal = false;
+          if (fx) {
+            const add = (amount: number | null, cur: string | null, frozen: number | null) => {
+              if (amount == null) return;
+              const v = toTrip(fx.ctx, amount, cur ?? fx.ctx.tripCurrency, frozen);
+              if (v != null) { total += v; hasTotal = true; }
+            };
+            for (const p of dayPlans) add(p.cost, p.cost_currency, p.usd_frozen);
+            for (const x of commutes) if (localDate(x.start_at, tz) === d) add(x.cost, x.cost_currency, null);
+          }
+          return (
+            <div
+              key={d}
+              data-col
+              className={`card flex w-[86vw] max-w-[320px] shrink-0 snap-start flex-col sm:w-[280px] ${over === d ? "border-primary bg-primary-soft/40" : ""}`}
+              onDragOver={(e) => { e.preventDefault(); setOver(d); }}
+              onDragLeave={() => setOver((cur) => (cur === d ? null : cur))}
+              onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData("text/plain"); if (id) drop(d, id); }}
+            >
+              <div className="sticky top-0 flex items-center justify-between rounded-t-[12px] border-b border-border bg-surface px-3 py-2">
+                <div>
+                  <span className="font-semibold">{md.format(new Date(d))}</span>{" "}
+                  <span className="text-xs text-muted">{wd.format(new Date(d))}</span>
+                  {outside && <div className="text-[11px] text-warning">{t("outside")}</div>}
+                  {hasTotal && fx && (
+                    <div className="text-[11px] tabular-nums text-muted">{tf("dayTotal")} <Money amount={total} currency={fx.ctx.tripCurrency} /></div>
+                  )}
+                </div>
+                <Link href={`/t/${tripId}/plans/new?date=${d}`} className="btn btn-sm !h-7 !px-2" aria-label={t("add")}><Plus size={14} /></Link>
+              </div>
+
+              <ul className="flex flex-1 flex-col gap-2 p-2">
+                {dayPlans.length === 0 && <li className="py-6 text-center text-xs text-muted">{t("dayEmpty")}</li>}
+                {list.map((p, idx) => {
+                  const next = list[idx + 1];
+                  const link = next ? commutes.find((x) => x.from_plan_id === p.id && x.to_plan_id === next.id) : undefined;
+                  const CIcon = link ? METHOD_ICON[link.method] : null;
+                  const Icon = PLAN_ICON[p.type];
+                  const c = ptVars(p.type);
+                  const startMs = Date.parse(p.start_at!);
+                  const endMs = startMs + p.duration_min * 60000;
+                  const overlap = prevEnd > startMs;
+                  prevEnd = Math.max(prevEnd, endMs);
+                  return (
+                    <li key={p.id}>
+                      {overlap && (
+                        <div className="mb-1 flex items-center gap-1 text-[11px] text-warning"><AlertTriangle size={12} /> {t("overlap")}</div>
+                      )}
+                      {renderCard(p, d, Icon, c, `${hm.format(startMs)}–${hm.format(endMs)}`)}
                       {next && (
                         <Link
                           href={link ? `/t/${tripId}/commutes/${link.id}` : `/t/${tripId}/commutes/new?from=${p.id}&to=${next.id}`}
@@ -208,7 +239,7 @@ export function DayBoard({
                         >
                           {link && CIcon ? (
                             <>
-                              <CIcon size={12} /> {tc(`methods.${link.method}`)} · {tc("min", { n: link.duration_min })}
+                              <CIcon size={12} /> {tc(`methods.${link.method}`)} · {tc("min", { n: link.duration_min })}{link.stops.length > 0 && <> · {tc("stopsCount", { n: link.stops.length })}</>}
                               {link.cost != null && <> · <Money amount={link.cost} currency={link.cost_currency ?? currency} /></>}
                             </>
                           ) : (
@@ -219,6 +250,14 @@ export function DayBoard({
                     </li>
                   );
                 })}
+                {tbd.length > 0 && (
+                  <li className="space-y-2">
+                    <div className="border-t border-dashed border-border pt-2 text-[11px] font-medium text-muted">{t("timeTbd")}</div>
+                    {tbd.map((p) => (
+                      <div key={p.id}>{renderCard(p, d, PLAN_ICON[p.type], ptVars(p.type), t("timeTbd"))}</div>
+                    ))}
+                  </li>
+                )}
               </ul>
             </div>
           );

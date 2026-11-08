@@ -63,7 +63,9 @@ export type Plan = {
   title: string;
   location_name: string | null;
   location_address: string | null;
-  start_at: string | null; // null = not scheduled yet
+  start_at: string | null; // null = date and/or time not decided
+  plan_date: string | null; // date known, no time
+  plan_time: string | null; // time known, no date ('HH:MM:SS')
   studio_name: string | null;
   duration_min: number;
   cost: number | null;
@@ -82,6 +84,8 @@ export type Plan = {
 };
 
 import type { Method, Payment } from "./commute";
+
+export type CommuteStop = { id: string; commute_id: string; label: string; stay_min: number; position: number };
 
 export type Commute = {
   id: string;

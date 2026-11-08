@@ -11,6 +11,7 @@ import { localDate, localToUtc, utcToLocal } from "@/lib/tz";
 import { rateForDay } from "@/lib/fx";
 import { PLAN_TYPES, VISIBILITIES } from "@/lib/plan-types";
 import { planTotal, type CostItem } from "@/lib/cost";
+import { resolveSchedule, safeBack } from "@/lib/schedule";
 import { METHODS, PAYMENTS } from "@/lib/commute";
 
 const localeSchema = z.enum(["zh-TW", "en"]);
@@ -305,7 +306,8 @@ const planSchema = z.object({
   title: z.string().trim().min(1).max(160),
   location_name: optText(200),
   location_address: optText(300),
-  start: localDt.nullable(), // null = not scheduled yet
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(), // optional
+  time: z.string().regex(/^\d{2}:\d{2}$/).nullable(), // optional
   duration_min: z.coerce.number().int().min(30).max(2880),
   cost_items: z
     .array(z.object({ label: z.string().trim().min(1).max(80), amount: z.number().min(0).max(1e9), per_hour: z.boolean() }))
@@ -347,7 +349,8 @@ async function parsePlan(supabase: Awaited<ReturnType<typeof createClient>>, tri
     title: fd.get("title"),
     location_name: String(fd.get("location_name") ?? ""),
     location_address: String(fd.get("location_address") ?? ""),
-    start: fd.get("undated") === "on" ? null : fd.get("start"),
+    date: String(fd.get("date") ?? "") || null,
+    time: String(fd.get("time") ?? "") || null,
     duration_min: fd.get("duration_min"),
     cost_items: jsonField("cost_items"),
     photographer_name: String(fd.get("photographer_name") ?? ""),
@@ -363,7 +366,7 @@ async function parsePlan(supabase: Awaited<ReturnType<typeof createClient>>, tri
     visibility: fd.get("visibility") ?? "normal",
     people: fd.getAll("person").map(String),
   });
-  const { start, people, cost_items, new_todos, ...rest } = v;
+  const { date, time, people, cost_items, new_todos, ...rest } = v;
   const sameCur = !rest.cost_currency || rest.cost_currency === trip.currency;
   const isCosplay = rest.type === "cosplay_photoshoot";
   const photographer_fee = isCosplay ? rest.photographer_fee : null;
@@ -379,7 +382,7 @@ async function parsePlan(supabase: Awaited<ReturnType<typeof createClient>>, tri
       studio_fee,
       // plans.cost is always the computed total (server-side; the client preview is advisory only)
       cost: planTotal({ items: cost_items, durationMin: rest.duration_min, photographerFee: photographer_fee, studioFee: studio_fee }),
-      start_at: start ? localToUtc(start, trip.timezone).toISOString() : null,
+      ...resolveSchedule(date, time, (l) => localToUtc(l, trip.timezone).toISOString()),
       cost_currency: sameCur ? null : rest.cost_currency,
       fx_rate_to_trip: sameCur ? null : rest.fx_rate_to_trip,
       character_name: rest.type === "cosplay_photoshoot" ? rest.character_name : null,
@@ -436,7 +439,7 @@ export async function createPlan(tripId: string, fd: FormData) {
   await insertPlanTodos(supabase, tripId, data.id, newTodos);
   await syncPlanPeople(supabase, tripId, data.id, personIds);
   revalidatePath(`/t/${tripId}`);
-  redirect(`/t/${tripId}`);
+  redirect(safeBack(tripId, fd.get("back"), `/t/${tripId}`));
 }
 
 export async function updatePlan(tripId: string, planId: string, fd: FormData) {
@@ -449,12 +452,16 @@ export async function updatePlan(tripId: string, planId: string, fd: FormData) {
   await freezePlanRate(supabase, tripId, planId); // currency may have changed on an already-completed plan
   await syncPlanPeople(supabase, tripId, planId, personIds);
   revalidatePath(`/t/${tripId}`);
-  redirect(`/t/${tripId}`);
+  redirect(safeBack(tripId, fd.get("back"), `/t/${tripId}`));
 }
 
-/** Copy a plan (people, cost items, checklist). Not copied: completion, photos, frozen FX, .ics link. */
-export async function duplicatePlan(tripId: string, planId: string) {
-  const { supabase } = await requireUser();
+/** Clone a plan row + people, cost items and checklist. Not copied: completion, photos, frozen FX, .ics link. */
+async function clonePlan(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string,
+  planId: string,
+  overrides: Record<string, unknown> = {},
+) {
   const { data: src, error: e0 } = await supabase.from("plans").select("*").eq("id", planId).eq("trip_id", tripId).single();
   if (e0 || !src) throw new Error("plan not found");
   const t = await getTranslations("plan");
@@ -464,7 +471,7 @@ export async function duplicatePlan(tripId: string, planId: string) {
   void [_id, _c, _t, _d, _ca, _u];
   const { data: copy, error } = await supabase
     .from("plans")
-    .insert({ ...keep, title: `${String(src.title).slice(0, 140)} ${t("copySuffix")}`, completed: false })
+    .insert({ ...keep, title: `${String(src.title).slice(0, 140)} ${t("copySuffix")}`, completed: false, ...overrides })
     .select("id")
     .single();
   if (error || !copy) throw new Error(error?.message ?? "copy failed");
@@ -476,33 +483,66 @@ export async function duplicatePlan(tripId: string, planId: string) {
   if (items?.length) await supabase.from("plan_cost_items").insert(items.map((i) => ({ ...i, plan_id: copy.id })));
   if (pp?.length) await supabase.from("plan_people").insert(pp.map((r) => ({ plan_id: copy.id, person_id: r.person_id })));
   if (todos?.length) await supabase.from("todos").insert(todos.map((x) => ({ ...x, trip_id: tripId, plan_id: copy.id, done: false })));
-  revalidatePath(`/t/${tripId}`);
-  redirect(`/t/${tripId}/plans/${copy.id}`);
+  return { id: copy.id as string, src };
 }
 
-export async function deletePlan(tripId: string, planId: string) {
+/** Plan page button: exact copy (same date/time), then open it. */
+export async function duplicatePlan(tripId: string, planId: string) {
+  const { supabase } = await requireUser();
+  const { id } = await clonePlan(supabase, tripId, planId);
+  revalidatePath(`/t/${tripId}`);
+  redirect(`/t/${tripId}/plans/${id}`);
+}
+
+/** Card button: copy lands in the SAME day column with the date but no time ("time TBD"). */
+export async function duplicatePlanToSameDay(tripId: string, planId: string) {
+  const { supabase } = await requireUser();
+  const [{ data: trip }, { data: src }] = await Promise.all([
+    supabase.from("trips").select("timezone").eq("id", tripId).single(),
+    supabase.from("plans").select("start_at,plan_date").eq("id", planId).eq("trip_id", tripId).single(),
+  ]);
+  if (!trip || !src) throw new Error("not found");
+  const day = src.start_at ? localDate(src.start_at, trip.timezone) : (src.plan_date as string | null);
+  if (!day) throw new Error("plan has no date");
+  await clonePlan(supabase, tripId, planId, { start_at: null, plan_date: day, plan_time: null });
+  revalidatePath(`/t/${tripId}`);
+}
+
+export async function deletePlan(tripId: string, planId: string, back?: unknown) {
   const { supabase } = await requireUser();
   await purgePhotos(supabase, [planId]);
   const { error } = await supabase.from("plans").delete().eq("id", planId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
   revalidatePath(`/t/${tripId}`);
-  redirect(`/t/${tripId}`);
+  redirect(safeBack(tripId, back, `/t/${tripId}`));
 }
 
-/** Drag-and-drop: keep the time of day, change the (trip-local) date. */
+/**
+ * Drag-and-drop / "schedule on" select: put a plan on a (trip-local) day.
+ *  - has a time -> keep the time of day
+ *  - had only a time (no date) -> becomes a full start_at with that time
+ *  - otherwise -> date only ("time TBD"); no invented 12:00 default
+ */
 export async function movePlanToDay(tripId: string, planId: string, date: string) {
   const { supabase } = await requireUser();
   z.string().regex(/^\d{4}-\d{2}-\d{2}$/).parse(date);
   const [{ data: trip }, { data: plan }] = await Promise.all([
     supabase.from("trips").select("timezone").eq("id", tripId).single(),
-    supabase.from("plans").select("start_at").eq("id", planId).eq("trip_id", tripId).single(),
+    supabase.from("plans").select("start_at,plan_date,plan_time").eq("id", planId).eq("trip_id", tripId).single(),
   ]);
   if (!trip || !plan) throw new Error("not found");
-  // Unscheduled plans get a default 12:00 start on the chosen day.
-  if (plan.start_at && localDate(plan.start_at, trip.timezone) === date) return;
-  const time = plan.start_at ? utcToLocal(plan.start_at, trip.timezone).slice(11) : "12:00";
-  const start_at = localToUtc(`${date}T${time}`, trip.timezone).toISOString();
-  const { error } = await supabase.from("plans").update({ start_at }).eq("id", planId).eq("trip_id", tripId);
+  let patch: Record<string, unknown>;
+  if (plan.start_at) {
+    if (localDate(plan.start_at, trip.timezone) === date) return;
+    const time = utcToLocal(plan.start_at, trip.timezone).slice(11);
+    patch = { start_at: localToUtc(`${date}T${time}`, trip.timezone).toISOString() };
+  } else if (plan.plan_time) {
+    patch = { start_at: localToUtc(`${date}T${String(plan.plan_time).slice(0, 5)}`, trip.timezone).toISOString(), plan_time: null, plan_date: null };
+  } else {
+    if (plan.plan_date === date) return;
+    patch = { plan_date: date };
+  }
+  const { error } = await supabase.from("plans").update(patch).eq("id", planId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
   revalidatePath(`/t/${tripId}`);
 }
@@ -547,6 +587,7 @@ const commuteSchema = z.object({
   dest_place_id: optText(300),
   distance_m: z.string().trim().transform((s) => (s === "" ? null : Number(s))).pipe(z.number().int().min(0).max(1e8).nullable()),
   duration_source: z.enum(["manual", "google"]),
+  stops: z.array(z.object({ label: z.string().trim().min(1).max(120), stay_min: z.number().int().min(0).max(1440) })).max(5),
 });
 
 async function parseCommute(supabase: Awaited<ReturnType<typeof createClient>>, tripId: string, fd: FormData) {
@@ -572,13 +613,19 @@ async function parseCommute(supabase: Awaited<ReturnType<typeof createClient>>, 
     dest_place_id: String(fd.get("dest_place_id") ?? ""),
     distance_m: String(fd.get("distance_m") ?? ""),
     duration_source: fd.get("duration_source") ?? "manual",
+    stops: (() => {
+      try { return JSON.parse(String(fd.get("stops") ?? "[]")); } catch { return []; }
+    })(),
   });
-  const { start, ...rest } = v;
+  const { start, stops, ...rest } = v;
   return {
+    stops,
+    values: {
     ...rest,
     start_at: localToUtc(start, trip.timezone).toISOString(),
     cost_currency: !rest.cost_currency || rest.cost_currency === trip.currency ? null : rest.cost_currency,
     estimated_at: rest.duration_source === "google" ? new Date().toISOString() : null,
+    },
   };
 }
 
@@ -600,11 +647,19 @@ async function syncCommuteTodo(
   }
 }
 
+async function saveStops(supabase: Awaited<ReturnType<typeof createClient>>, commuteId: string, stops: { label: string; stay_min: number }[]) {
+  await supabase.from("commute_stops").delete().eq("commute_id", commuteId);
+  if (stops.length === 0) return;
+  const { error } = await supabase.from("commute_stops").insert(stops.map((x, position) => ({ commute_id: commuteId, label: x.label, stay_min: x.stay_min, position })));
+  if (error) throw new Error(error.message);
+}
+
 export async function createCommute(tripId: string, fd: FormData) {
   const { supabase } = await requireUser();
-  const v = await parseCommute(supabase, tripId, fd);
+  const { values: v, stops } = await parseCommute(supabase, tripId, fd);
   const { data, error } = await supabase.from("commutes").insert({ ...v, trip_id: tripId }).select("id,payment,origin_label,dest_label").single();
   if (error) throw new Error(error.message);
+  await saveStops(supabase, data.id, stops);
   await syncCommuteTodo(supabase, tripId, data);
   revalidatePath(`/t/${tripId}`);
   redirect(`/t/${tripId}`);
@@ -612,10 +667,11 @@ export async function createCommute(tripId: string, fd: FormData) {
 
 export async function updateCommute(tripId: string, commuteId: string, fd: FormData) {
   const { supabase } = await requireUser();
-  const v = await parseCommute(supabase, tripId, fd);
+  const { values: v, stops } = await parseCommute(supabase, tripId, fd);
   const { data, error } = await supabase
     .from("commutes").update(v).eq("id", commuteId).eq("trip_id", tripId).select("id,payment,origin_label,dest_label").single();
   if (error) throw new Error(error.message);
+  await saveStops(supabase, commuteId, stops);
   await syncCommuteTodo(supabase, tripId, data);
   revalidatePath(`/t/${tripId}`);
   redirect(`/t/${tripId}`);

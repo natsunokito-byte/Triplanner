@@ -88,6 +88,8 @@ create table plans (
   character_name text,
   photographer_name text,                              -- cosplay_photoshoot only
   photographer_fee numeric(12,2),                      -- cosplay_photoshoot only (plan currency)
+  plan_date date,                                      -- date known, time not decided (start_at null)
+  plan_time time,                                      -- time known, date not decided (start_at null)
   studio_name text,                                    -- cosplay_photoshoot only
   studio_fee numeric(12,2),                            -- cosplay_photoshoot only (plan currency)
   ics_token text not null unique default encode(gen_random_bytes(12),'hex'),  -- unguessable per-plan .ics link
@@ -154,6 +156,16 @@ create table commutes (
   payment payment_method,
   note text
 );
+
+-- Intermediate stops on a commute, each with a stay time. Busy time = travel + sum(stay).
+create table commute_stops (
+  id uuid primary key default gen_random_uuid(),
+  commute_id uuid not null references commutes(id) on delete cascade,
+  label text not null,
+  stay_min int not null default 0 check (stay_min >= 0),
+  position int not null default 0
+);
+create index on commute_stops (commute_id, position);
 
 -- Owner-defined to-do categories (the built-in enum categories stay as-is)
 create table todo_categories (
@@ -243,7 +255,7 @@ create table fx_rates (
 do $$
 declare t text;
 begin
-  foreach t in array array['trips','people','hotels','plans','plan_people','plan_photos','commutes','todos','todo_categories','plan_cost_items','viewer_sessions','viewer_otps','fx_rates','availability_blocks','plan_requests']
+  foreach t in array array['trips','people','hotels','plans','plan_people','plan_photos','commutes','todos','todo_categories','plan_cost_items','commute_stops','viewer_sessions','viewer_otps','fx_rates','availability_blocks','plan_requests']
   loop
     execute format('alter table %I enable row level security', t);
   end loop;
@@ -258,6 +270,7 @@ create policy commutes_owner on commutes for all using (exists (select 1 from tr
 create policy todos_owner    on todos    for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
 create policy todo_categories_owner on todo_categories for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
 create policy plan_cost_items_owner on plan_cost_items for all using (exists (select 1 from plans p join trips x on x.id = p.trip_id where p.id = plan_id and x.owner_id = auth.uid()));
+create policy commute_stops_owner on commute_stops for all using (exists (select 1 from commutes c join trips x on x.id = c.trip_id where c.id = commute_id and x.owner_id = auth.uid()));
 create policy plan_people_owner on plan_people for all using (exists (select 1 from plans p join trips x on x.id = p.trip_id where p.id = plan_id and x.owner_id = auth.uid()));
 create policy plan_photos_owner on plan_photos for all using (exists (select 1 from plans p join trips x on x.id = p.trip_id where p.id = plan_id and x.owner_id = auth.uid()));
 create policy viewer_sessions_owner on viewer_sessions for select using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
