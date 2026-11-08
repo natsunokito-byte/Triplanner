@@ -16,7 +16,7 @@ export default async function PlanOverview({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ types?: string }>;
+  searchParams: Promise<{ types?: string; group?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -35,18 +35,28 @@ export default async function PlanOverview({
   // Multi-select type filter: ?types=dinner,cosplay_photoshoot (empty = all)
   const active = new Set((sp.types ?? "").split(",").filter((x): x is PlanType => (PLAN_TYPES as readonly string[]).includes(x)));
   const present = PLAN_TYPES.filter((k) => all.some((p) => p.type === k));
+  // With the cosplay filter on, the list can be grouped by date (default) or by photographer.
+  const showGroupToggle = active.has("cosplay_photoshoot");
+  const byPhotographer = showGroupToggle && sp.group === "photographer";
+  const hrefFor = (types: Iterable<string>, group = byPhotographer) => {
+    const params = new URLSearchParams();
+    const tq = [...types].join(",");
+    if (tq) params.set("types", tq);
+    if (group && [...types].includes("cosplay_photoshoot")) params.set("group", "photographer");
+    const qs = params.toString();
+    return `/t/${id}/plans${qs ? `?${qs}` : ""}`;
+  };
   const toggleHref = (k: PlanType) => {
     const next = new Set(active);
     if (next.has(k)) next.delete(k);
     else next.add(k);
-    const q = [...next].join(",");
-    return `/t/${id}/plans${q ? `?types=${q}` : ""}`;
+    return hrefFor(next);
   };
   const shown = active.size ? all.filter((p) => active.has(p.type)) : all;
   const dated = shown.filter((p) => !isUnscheduled(p));
   const undated = shown.filter((p) => isUnscheduled(p));
   // Link back here (with the current filter) from anything opened from this page.
-  const here = `/t/${id}/plans${active.size ? `?types=${[...active].join(",")}` : ""}`;
+  const here = hrefFor(active);
   const q = (extra: Record<string, string>) => new URLSearchParams({ ...extra, back: here }).toString();
   // Exactly one type selected -> new plans start with that type.
   const newType: Record<string, string> = active.size === 1 ? { type: [...active][0] } : {};
@@ -56,9 +66,17 @@ export default async function PlanOverview({
     const d = p.start_at ? localDate(p.start_at, trip.timezone) : p.plan_date!;
     byDay.set(d, [...(byDay.get(d) ?? []), p]);
   }
+  const photoGroups = new Map<string, Plan[]>();
+  if (byPhotographer) {
+    for (const p of shown) {
+      const k = p.photographer_name || "";
+      photoGroups.set(k, [...(photoGroups.get(k) ?? []), p]);
+    }
+  }
+  const groupKeys = [...photoGroups.keys()].sort((a, b) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b)));
   const dayFmt = new Intl.DateTimeFormat(locale, { month: "numeric", day: "numeric", weekday: "short", timeZone: "UTC" });
 
-  const Row = ({ p }: { p: Plan }) => {
+  const Row = ({ p, withDate = false }: { p: Plan; withDate?: boolean }) => {
     const Icon = PLAN_ICON[p.type];
     const col = ptVars(p.type);
     return (
@@ -71,7 +89,7 @@ export default async function PlanOverview({
           <Icon size={18} style={{ color: col.fg }} className="mt-0.5 shrink-0" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 text-xs tabular-nums text-muted">
-              {p.start_at ? utcToLocal(p.start_at, trip.timezone).slice(11, 16) : t("noTime")}{p.type !== "wake_up" && <> · {t("hours", { h: formatHours(p.duration_min) })}</>}
+              {withDate && (p.start_at || p.plan_date) && <>{dayFmt.format(new Date(p.start_at ? localDate(p.start_at, trip.timezone) : p.plan_date!))} · </>}{p.start_at ? utcToLocal(p.start_at, trip.timezone).slice(11, 16) : t("noTime")}{p.type !== "wake_up" && <> · {t("hours", { h: formatHours(p.duration_min) })}</>}
               <span className="rounded-full px-2 text-[11px]" style={{ background: col.bg, color: col.fg }}>{t(`types.${p.type}`)}</span>
               {schedState(p) !== "full" && schedState(p) !== "dateOnly" && <span className="rounded-full bg-surface-2 px-2 text-[11px]">{p.plan_time ? t("noDateHasTime", { time: hhmm(p.plan_time)! }) : t("noDateNoTime")}</span>}
             </div>
@@ -111,16 +129,30 @@ export default async function PlanOverview({
           ))}
         </div>
 
+        {showGroupToggle && (
+          <div className="seg" role="group">
+            <Link href={hrefFor(active, false)} className={`seg-item ${byPhotographer ? "" : "seg-item-active"}`}>{t("groupDate")}</Link>
+            <Link href={hrefFor(active, true)} className={`seg-item ${byPhotographer ? "seg-item-active" : ""}`}>{t("groupPhotographer")}</Link>
+          </div>
+        )}
+
         {shown.length === 0 && <p className="text-muted">{t("overviewEmpty")}</p>}
 
-        {[...byDay.keys()].sort().map((d) => (
+        {byPhotographer && groupKeys.map((k) => (
+          <section key={k || "none"} className="space-y-2">
+            <h2 className="font-semibold">{k || t("photographerNone")} <span className="text-xs font-normal text-muted">{photoGroups.get(k)!.length}</span></h2>
+            <ul className="space-y-2">{photoGroups.get(k)!.map((p) => <Row key={p.id} p={p} withDate />)}</ul>
+          </section>
+        ))}
+
+        {!byPhotographer && [...byDay.keys()].sort().map((d) => (
           <section key={d} className="space-y-2">
             <h2 className="font-semibold">{dayFmt.format(new Date(d))}</h2>
             <ul className="space-y-2">{byDay.get(d)!.map((p) => <Row key={p.id} p={p} />)}</ul>
           </section>
         ))}
 
-        {undated.length > 0 && (
+        {!byPhotographer && undated.length > 0 && (
           <section className="space-y-2">
             <h2 className="font-semibold">{t("unscheduled")} <span className="text-xs font-normal text-muted">{undated.length}</span></h2>
             <ul className="space-y-2">{undated.map((p) => <Row key={p.id} p={p} />)}</ul>

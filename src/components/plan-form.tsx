@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { UsdHint } from "./fx";
 import { PLAN_ICON, SELECTABLE_TYPES, canOpenClaim, TASK_TODO_TYPES, VISIBILITIES, ptVars, type PlanType, type Visibility } from "@/lib/plan-types";
 import { formatHours, hoursToMinutes, planTotal } from "@/lib/cost";
+import { photographerFee, type Photographer } from "@/lib/photographers";
 import { Check, Circle, Plus, X } from "lucide-react";
 import { deletePlanTodo, togglePlanTodo } from "@/app/actions";
 import type { Person, Plan } from "@/lib/types";
@@ -28,6 +29,7 @@ export function PlanForm({
   costItems = [],
   categories = [],
   savedTodos = [],
+  photographers = [],
 }: {
   action: (fd: FormData) => Promise<void>;
   plan?: Plan;
@@ -45,6 +47,7 @@ export function PlanForm({
   categories?: { id: string; name: string }[];
   /** already-saved to-dos of this plan (edit mode), shown in the same block as the new-to-do fields */
   savedTodos?: { id: string; title: string; done: boolean }[];
+  photographers?: Photographer[];
 }) {
   const t = useTranslations("plan");
   const router = useRouter();
@@ -61,7 +64,10 @@ export function PlanForm({
         ? [{ label: t("itemDefault"), amount: String(plan.cost), per_hour: false }]
         : [],
   );
-  const [pFee, setPFee] = useState(plan?.photographer_fee != null ? String(plan.photographer_fee) : "");
+  const [pName, setPName] = useState(plan?.photographer_name ?? "");
+  // null = follow the photographer's rate card; a string = the owner typed their own amount
+  const [pFeeManual, setPFeeManual] = useState<string | null>(plan?.photographer_fee != null ? String(plan.photographer_fee) : null);
+  const pSelectRef = useRef<HTMLSelectElement>(null);
   const [sFee, setSFee] = useState(plan?.studio_fee != null ? String(plan.studio_fee) : "");
   const [todoLines, setTodoLines] = useState<TodoLine[]>([]);
   const [saved, setSaved] = useState(savedTodos);
@@ -73,6 +79,13 @@ export function PlanForm({
   const duration = hoursToMinutes(Number(hours));
   const badDuration = hours.trim() === "" || !Number.isFinite(duration) || Number(hours) < 0.5 || Number(hours) > 48;
   const isCosplay = type === "cosplay_photoshoot";
+  const chosen = photographers.find((x) => x.name === pName);
+  const rate = chosen && Number.isFinite(duration) ? photographerFee(chosen, duration) : null;
+  const rateErr = rate && "error" in rate ? rate.error : null;
+  const pFee = pFeeManual ?? (rate && "fee" in rate ? String(rate.fee) : "");
+  useEffect(() => {
+    pSelectRef.current?.setCustomValidity(isCosplay && rateErr ? t(`photographerErr.${rateErr}`, { name: pName }) : "");
+  });
   const isWake = type === "wake_up"; // only records a time: no title/place/duration/cost needed
   const num = (v: string) => (v.trim() === "" || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : Number(v));
   const cleanItems = items
@@ -194,11 +207,19 @@ export function PlanForm({
           </div>
           <div className="col-span-2">
             <label className="label" htmlFor="photographer_name">{t("photographer")}</label>
-            <input id="photographer_name" name="photographer_name" className="input" maxLength={120} defaultValue={plan?.photographer_name ?? ""} />
+            <select
+              id="photographer_name" name="photographer_name" ref={pSelectRef} className="input" value={pName}
+              onChange={(e) => { setPName(e.target.value); setPFeeManual(null); }}
+            >
+              <option value="">{t("photographerNone")}</option>
+              {photographers.map((x) => <option key={x.id} value={x.name}>{x.name}</option>)}
+              {pName && !chosen && <option value={pName}>{pName}</option>}
+            </select>
+            {isCosplay && rateErr && <p role="alert" className="mt-1 text-xs text-danger">{t(`photographerErr.${rateErr}`, { name: pName })}</p>}
           </div>
           <div>
             <label className="label" htmlFor="photographer_fee">{t("photographerFee")}</label>
-            <input id="photographer_fee" name="photographer_fee" type="number" min="0" step="0.01" className="input" value={pFee} onChange={(e) => setPFee(e.target.value)} />
+            <input id="photographer_fee" name="photographer_fee" type="number" min="0" step="0.01" className="input" value={pFee} onChange={(e) => setPFeeManual(e.target.value)} />
           </div>
           <div className="col-span-2">
             <label className="label" htmlFor="studio_name">{t("studioName")}</label>

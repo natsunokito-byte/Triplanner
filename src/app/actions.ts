@@ -1,5 +1,6 @@
 "use server";
 
+import { photographerFee } from "@/lib/photographers";
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -418,6 +419,12 @@ async function parsePlan(supabase: Awaited<ReturnType<typeof createClient>>, tri
   if (rest.type === "wake_up") {
     if (!time) throw new Error("wake-up time required");
     Object.assign(rest, { location_name: null, location_address: null, link: null, cost_currency: null, fx_rate_to_trip: null });
+  }
+  if (isCosplay && rest.photographer_name) {
+    const { data: ph } = await supabase.from("photographers").select("rate_1h,rate_2h").eq("name", rest.photographer_name).limit(1).maybeSingle();
+    if (ph && "error" in photographerFee({ rate_1h: ph.rate_1h == null ? null : Number(ph.rate_1h), rate_2h: ph.rate_2h == null ? null : Number(ph.rate_2h) }, rest.duration_min)) {
+      throw new Error("photographer rate not available for this duration");
+    }
   }
   const photographer_fee = isCosplay ? rest.photographer_fee : null;
   const studio_fee = isCosplay ? rest.studio_fee : null;

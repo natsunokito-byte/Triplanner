@@ -26,3 +26,13 @@ test("hours input snaps to 30 min, min 30", () => {
   assert.equal(formatHours(90), "1.5");
   assert.equal(formatHours(120), "2");
 });
+
+import { photographerFee } from "../src/lib/photographers";
+test("photographer fee tiers", () => {
+  const saya = { rate_1h: 2000, rate_2h: 3600 };
+  const hc = { rate_1h: null, rate_2h: 3000 };
+  assert.deepEqual(photographerFee(saya, 60), { fee: 2000 });
+  assert.deepEqual(photographerFee(saya, 120), { fee: 3600 });
+  assert.deepEqual(photographerFee(hc, 120), { fee: 3000 });
+  assert.deepEqual(photographerFee(hc, 60), { error: "min2h" });
+});

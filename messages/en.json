@@ -264,7 +264,14 @@
     "claimsTitle": "Join requests",
     "addClaimer": "Add {name} to plan",
     "removeClaim": "Delete",
-    "claimErr": "Something went wrong. Try again."
+    "claimErr": "Something went wrong. Try again.",
+    "photographerNone": "None",
+    "photographerErr": {
+      "min2h": "{name} has no 1-hour option; at least 2 hours is required.",
+      "min1h": "{name} has no 2-hour option."
+    },
+    "groupDate": "By date",
+    "groupPhotographer": "By photographer"
   },
   "commute": {
     "methods": {

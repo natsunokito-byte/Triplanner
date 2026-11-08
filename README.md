@@ -61,3 +61,6 @@ Next.js 16 + Supabase. 規格見 `SPEC.md`，設計系統見 `DESIGN.md`。
 
 ## M19 提議行程
 公開認領頁新增「提議行程」按鈕（名字、活動類別、想做什麼、大概日期/時間/地點、補充）。提議存入 `plan_proposals`，在「行程認領」頁的「行程提議」區審核；接受會直接建立行程並把提議者加為參與者。需執行 `supabase/migrations/008_m19.sql`。
+
+## M20 攝影師資料庫
+`photographers` 資料表（Saya／洸／HC／Judy 與費率）；cosplay 行程的攝影師改為下拉選單，依攝影師與時長自動帶入費用（未滿 2 小時用 1 小時費率、2 小時以上用 2 小時費率；HC 沒有 1 小時方案，不滿 2 小時會顯示錯誤並擋下儲存）。行程一覽選到 cosplay 時可切換「依日期／依攝影師」。需執行 `supabase/migrations/009_photographers.sql`。

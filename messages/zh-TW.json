@@ -264,7 +264,14 @@
     "claimsTitle": "認養請求",
     "addClaimer": "將 {name} 加入行程",
     "removeClaim": "刪除",
-    "claimErr": "處理失敗，請再試一次。"
+    "claimErr": "處理失敗，請再試一次。",
+    "photographerNone": "不指定",
+    "photographerErr": {
+      "min2h": "{name} 沒有 1 小時的方案，至少需要 2 小時。",
+      "min1h": "{name} 沒有 2 小時以上的方案。"
+    },
+    "groupDate": "依日期",
+    "groupPhotographer": "依攝影師"
   },
   "commute": {
     "methods": {

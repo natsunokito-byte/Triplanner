@@ -171,6 +171,17 @@ create table commute_stops (
 create index on commute_stops (commute_id, position);
 
 -- Owner-defined to-do categories (the built-in enum categories stay as-is)
+create table photographers (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  rate_1h numeric(12,2),
+  rate_2h numeric(12,2),
+  position int not null default 0,
+  created_at timestamptz default now()
+);
+create index photographers_owner_idx on photographers (owner_id, position);
+
 create table todo_categories (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references trips(id) on delete cascade,
@@ -306,6 +317,8 @@ create policy hotels_owner   on hotels   for all using (exists (select 1 from tr
 create policy plans_owner    on plans    for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
 create policy commutes_owner on commutes for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
 create policy todos_owner    on todos    for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
+alter table photographers enable row level security;
+create policy photographers_owner on photographers for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 create policy todo_categories_owner on todo_categories for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
 create policy plan_cost_items_owner on plan_cost_items for all using (exists (select 1 from plans p join trips x on x.id = p.trip_id where p.id = plan_id and x.owner_id = auth.uid()));
 create policy commute_stops_owner on commute_stops for all using (exists (select 1 from commutes c join trips x on x.id = c.trip_id where c.id = commute_id and x.owner_id = auth.uid()));
