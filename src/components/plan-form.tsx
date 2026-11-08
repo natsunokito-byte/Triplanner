@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { UsdHint } from "./fx";
 import { PLAN_ICON, SELECTABLE_TYPES, canOpenClaim, TASK_TODO_TYPES, VISIBILITIES, ptVars, type PlanType, type Visibility } from "@/lib/plan-types";
 import { formatHours, hoursToMinutes, planTotal } from "@/lib/cost";
-import { Plus, X } from "lucide-react";
+import { Check, Circle, Plus, X } from "lucide-react";
+import { deletePlanTodo, togglePlanTodo } from "@/app/actions";
 import type { Person, Plan } from "@/lib/types";
 
 type Item = { label: string; amount: string; per_hour: boolean };
@@ -26,6 +27,7 @@ export function PlanForm({
   intercepted = false,
   costItems = [],
   categories = [],
+  savedTodos = [],
 }: {
   action: (fd: FormData) => Promise<void>;
   plan?: Plan;
@@ -41,6 +43,8 @@ export function PlanForm({
   intercepted?: boolean;
   costItems?: { label: string; amount: number; per_hour: boolean }[];
   categories?: { id: string; name: string }[];
+  /** already-saved to-dos of this plan (edit mode), shown in the same block as the new-to-do fields */
+  savedTodos?: { id: string; title: string; done: boolean }[];
 }) {
   const t = useTranslations("plan");
   const router = useRouter();
@@ -60,6 +64,8 @@ export function PlanForm({
   const [pFee, setPFee] = useState(plan?.photographer_fee != null ? String(plan.photographer_fee) : "");
   const [sFee, setSFee] = useState(plan?.studio_fee != null ? String(plan.studio_fee) : "");
   const [todoLines, setTodoLines] = useState<TodoLine[]>([]);
+  const [saved, setSaved] = useState(savedTodos);
+  const [, startTodo] = useTransition();
   const [focusIdx, setFocusIdx] = useState<number | null>(null);
   const [selected, setSelected] = useState<string[]>(planPeople);
 
@@ -86,6 +92,33 @@ export function PlanForm({
       <fieldset hidden={isWake} className="space-y-2">
         <legend className="label">{TASK_TODO_TYPES.includes(type) ? t("taskTodos") : t("planTodos")}</legend>
         <input type="hidden" name="new_todos" value={JSON.stringify(cleanTodos)} />
+        {plan && saved.length > 0 && (
+          <ul className="space-y-1">
+            {saved.map((todo) => (
+              <li key={todo.id} className="flex items-center gap-2">
+                <button
+                  type="button" className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2" aria-label={todo.done ? "undo" : "done"}
+                  onClick={() => {
+                    setSaved(saved.map((x) => (x.id === todo.id ? { ...x, done: !x.done } : x)));
+                    startTodo(() => togglePlanTodo(plan.trip_id, plan.id, todo.id, !todo.done));
+                  }}
+                >
+                  {todo.done ? <Check size={18} className="text-success" /> : <Circle size={18} className="text-muted" />}
+                </button>
+                <span className={`flex-1 ${todo.done ? "text-muted line-through" : ""}`}>{todo.title}</span>
+                <button
+                  type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")}
+                  onClick={() => {
+                    setSaved(saved.filter((x) => x.id !== todo.id));
+                    startTodo(() => deletePlanTodo(plan.trip_id, plan.id, todo.id));
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         {todoLines.map((x, i) => (
           <div key={i} className={`grid items-center gap-2 ${categories.length > 0 ? "grid-cols-[1fr_8rem_auto]" : "grid-cols-[1fr_auto]"}`}>
             <input

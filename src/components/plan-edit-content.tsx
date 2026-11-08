@@ -11,7 +11,6 @@ import { addPlanTodo, deletePlan, duplicatePlan, deletePlanTodo, setPlanComplete
 import { headers } from "next/headers";
 import { hhmm } from "@/lib/schedule";
 import { DrawerShell, DrawerDeleteButton } from "@/components/drawer-shell";
-import { TASK_TODO_TYPES } from "@/lib/plan-types";
 import { fmtMoney } from "@/lib/money";
 import { utcToLocal } from "@/lib/tz";
 import type { Person, Plan, Todo, Trip } from "@/lib/types";
@@ -77,6 +76,7 @@ export async function EditPlanContent({ id, planId, back, intercepted }: { id: s
             plan={plan}
             costItems={((itemRows ?? []) as { label: string; amount: number | string; per_hour: boolean }[]).map((i) => ({ ...i, amount: Number(i.amount) }))}
             categories={(catRows ?? []) as { id: string; name: string }[]}
+            savedTodos={planTodos.map((x) => ({ id: x.id, title: x.title, done: x.done }))}
             planPeople={(ppRows ?? []).map((r) => r.person_id as string)}
             people={(peopleRows ?? []) as Person[]}
             tz={trip.timezone}
@@ -113,29 +113,6 @@ export async function EditPlanContent({ id, planId, back, intercepted }: { id: s
           <InvitePanel plan={{ ...plan, start_at: plan.start_at }} tz={trip.timezone} tripTitle={trip.title} defaultLocale={trip.invite_locale} icsUrl={`${origin}/api/ics/${plan.ics_token}`} recipients={recipients} />
         ) : (
           <p className="text-xs text-muted">{plan.start_at ? ti("privateNote") : t("undatedNote")}</p>
-        )}
-
-        {planTodos.length > 0 && (
-          <section className="card p-5 space-y-3">
-            <h2 className="font-semibold">{TASK_TODO_TYPES.includes(plan.type) ? t("taskTodos") : t("planTodos")}</h2>
-            <ul className="space-y-1">
-              {planTodos.map((todo) => (
-                <li key={todo.id} className="flex items-center gap-2">
-                  <form action={togglePlanTodo.bind(null, id, planId, todo.id, !todo.done)}>
-                    <button className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2" aria-label={todo.done ? "undo" : "done"}>
-                      {todo.done ? <Check size={18} className="text-success" /> : <Circle size={18} className="text-muted" />}
-                    </button>
-                  </form>
-                  <span className={`flex-1 ${todo.done ? "text-muted line-through" : ""}`}>{todo.title}</span>
-                  <form action={deletePlanTodo.bind(null, id, planId, todo.id)}>
-                    <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={c("delete")}>
-                      <Trash2 size={14} />
-                    </button>
-                  </form>
-                </li>
-              ))}
-            </ul>
-          </section>
         )}
 
         {plan.type === "cosplay_photoshoot" && (
