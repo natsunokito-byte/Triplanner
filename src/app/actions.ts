@@ -931,6 +931,14 @@ export async function toggleTodoItem(tripId: string, todoId: string, done: boole
   revalidatePath(`/t/${tripId}/dashboard`);
 }
 
+/** Drag-to-reorder: the given to-dos get sort 0..n in this order. */
+export async function reorderTodos(tripId: string, ids: string[]) {
+  const { supabase } = await requireUser();
+  const wanted = z.array(z.string().uuid()).max(500).parse(ids);
+  await Promise.all(wanted.map((id, i) => supabase.from("todos").update({ sort: i }).eq("id", id).eq("trip_id", tripId)));
+  revalidatePath(todoPath(tripId));
+}
+
 /** Set or clear a to-do's due date (calendar picker on the task row). */
 export async function setTodoDue(tripId: string, todoId: string, fd: FormData) {
   const { supabase } = await requireUser();

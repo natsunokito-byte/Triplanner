@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Trash2, X } from "lucide-react";
-import { deleteShoppingItem, updateShoppingItem } from "@/app/shopping-actions";
+import { deleteShoppingItem, reorderShoppingItems, updateShoppingItem } from "@/app/shopping-actions";
+import { SortableList } from "./sortable-list";
 
 export type ShoppingItem = { id: string; title: string; done: boolean; amount: number | null; currency: string | null; note: string | null };
 export const COMMON_CURRENCIES = ["TWD", "JPY", "USD", "EUR", "KRW", "GBP", "HKD", "THB", "SGD"];
@@ -31,7 +32,7 @@ export function ShoppingItemRow({
   const amt = amount.trim() === "" ? null : Number(amount);
   const amtOk = amt == null || (Number.isFinite(amt) && amt >= 0);
   return (
-    <li
+    <div
       className="space-y-1.5 py-2"
       onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement && !e.nativeEvent.isComposing) { e.preventDefault(); e.target.blur(); } }}
     >
@@ -89,10 +90,17 @@ export function ShoppingItemRow({
         </div>
       )}
       {err && <p role="alert" className="pl-12 text-xs text-danger">!</p>}
-    </li>
+    </div>
   );
 }
 
 export function CurrencyList() {
   return <datalist id="shopping-currencies">{COMMON_CURRENCIES.map((c) => <option key={c} value={c} />)}</datalist>;
+}
+
+/** A plan's shopping list: drag the grip to reorder (saved right away). `items` may be a filtered subset. */
+export function ShoppingList({ tripId, planId, items, tripCurrency }: { tripId: string; planId: string; items: ShoppingItem[]; tripCurrency: string }) {
+  const t = useTranslations("todos");
+  const rows = items.map((item) => ({ id: item.id, node: <ShoppingItemRow tripId={tripId} item={item} tripCurrency={tripCurrency} /> }));
+  return <SortableList className="divide-y divide-border" label={t("dragReorder")} rows={rows} onReorder={(ids) => reorderShoppingItems(tripId, planId, ids)} />;
 }

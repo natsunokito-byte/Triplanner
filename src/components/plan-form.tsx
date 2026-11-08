@@ -7,7 +7,7 @@ import { UsdHint } from "./fx";
 import { PLAN_ICON, SELECTABLE_TYPES, canOpenClaim, TASK_TODO_TYPES, VISIBILITIES, ptVars, type PlanType, type Visibility } from "@/lib/plan-types";
 import { formatHours, hoursToMinutes, planTotal } from "@/lib/cost";
 import { photographerFee, type Photographer } from "@/lib/photographers";
-import { CurrencyList, ShoppingItemRow, type ShoppingItem } from "./shopping-item-row";
+import { CurrencyList, ShoppingList, type ShoppingItem } from "./shopping-item-row";
 import { Check, Circle, Plus, X } from "lucide-react";
 import { deletePlanTodo, togglePlanTodo } from "@/app/actions";
 import type { Person, Plan } from "@/lib/types";
@@ -111,9 +111,7 @@ export function PlanForm({
         {plan && type === "shopping" && plan.type === "shopping" && (
           <>
             <CurrencyList />
-            <ul className="divide-y divide-border">
-              {shoppingItems.map((it) => <ShoppingItemRow key={it.id} tripId={plan.trip_id} item={it} tripCurrency={currency} />)}
-            </ul>
+            <ShoppingList tripId={plan.trip_id} planId={plan.id} items={shoppingItems} tripCurrency={currency} />
             {shoppingItems.length > 0 && <p className="text-xs text-muted">{t("shoppingNote")}</p>}
           </>
         )}

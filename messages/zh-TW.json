@@ -594,7 +594,8 @@
     "removeItem": "移除",
     "goPlan": "前往行程",
     "addNote": "新增備註",
-    "clearNote": "清除備註"
+    "clearNote": "清除備註",
+    "dragReorder": "拖曳排序"
   },
   "claim": {
     "title": "{trip}：行程認養",

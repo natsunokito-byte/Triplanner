@@ -594,7 +594,8 @@
     "removeItem": "Remove",
     "goPlan": "Open plan",
     "addNote": "Add note",
-    "clearNote": "Clear note"
+    "clearNote": "Clear note",
+    "dragReorder": "Drag to reorder"
   },
   "claim": {
     "title": "{trip}: plan claims",

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
-import { CurrencyList, ShoppingItemRow, type ShoppingItem } from "@/components/shopping-item-row";
+import { CurrencyList, ShoppingList, type ShoppingItem } from "@/components/shopping-item-row";
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
 import { addShoppingItemForm } from "@/app/shopping-actions";
@@ -57,9 +57,7 @@ export async function ShoppingTab({ id, filter, tripTitle, tz, currency }: { id:
         {g.spent.size > 0 && <span className="text-xs tabular-nums text-muted">{[...g.spent].map(([cur, n]) => money(cur, n)).join(" + ")}</span>}
         <Link href={`/t/${id}/plans/${g.id}`} className="ml-auto text-muted hover:text-text" aria-label={t("goPlan")}><ExternalLink size={14} /></Link>
       </summary>
-      <ul className="mt-2 divide-y divide-border">
-        {g.shown.map((x) => <ShoppingItemRow key={x.id} tripId={id} item={x} tripCurrency={currency} />)}
-      </ul>
+      <div className="mt-2"><ShoppingList tripId={id} planId={g.id} items={g.shown} tripCurrency={currency} /></div>
       {g.shown.length === 0 && <p className="mt-2 text-sm text-muted">{t("shoppingNoMatch")}</p>}
       <form action={addShoppingItemForm.bind(null, id, g.id)} className="mt-3 flex gap-2 border-t border-border pt-3">
         <input name="title" className="input" maxLength={200} required placeholder={t("shoppingPh")} />

@@ -4,11 +4,12 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowLeft, Check, Circle, ExternalLink, Trash2 } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { TodoCategorySelect, TodoDuePicker } from "@/components/todo-row-controls";
+import { SortableList } from "@/components/sortable-list";
 import { ConfirmButton } from "@/components/confirm-button";
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
 import {
-  addTodoItem, createTodoCategory, deleteTodoCategory, deleteTodoItem, moveTodoItem, renameTodoCategory, setTodoDue, toggleTodoItem,
+  addTodoItem, createTodoCategory, reorderTodos, deleteTodoCategory, deleteTodoItem, moveTodoItem, renameTodoCategory, setTodoDue, toggleTodoItem,
 } from "@/app/actions";
 import { groupByDate, todoDate } from "@/lib/todo-groups";
 import { localDate } from "@/lib/tz";
@@ -53,7 +54,7 @@ export default async function TodosPage({
   const groupMode: "date" | "cat" = hasCats && sp.group === "cat" ? "cat" : "date"; // date is the default
 
   const visible = filter ? todos.filter((x) => catKeyOf(x) === filter) : todos;
-  const byDate = (a: Todo, b: Todo) => (dateOf(a) ?? "9999").localeCompare(dateOf(b) ?? "9999") || a.title.localeCompare(b.title);
+  const byDate = (a: Todo, b: Todo) => (dateOf(a) ?? "9999").localeCompare(dateOf(b) ?? "9999") || (a.sort ?? 0) - (b.sort ?? 0) || a.title.localeCompare(b.title);
   const open = visible.filter((x) => !x.done).sort(byDate);
   const done = visible.filter((x) => x.done).sort(byDate);
 
@@ -81,7 +82,7 @@ export default async function TodosPage({
   const row = (x: Todo) => {
     const src = srcHref(x);
     return (
-      <li key={x.id} className="flex min-h-10 flex-wrap items-center gap-2">
+      <div className="flex min-h-10 flex-wrap items-center gap-2">
         {src && <Link href={src} className="text-muted hover:text-text" aria-label={t("open")}><ExternalLink size={14} /></Link>}
         <form action={toggleTodoItem.bind(null, id, x.id, !x.done)} className="flex items-center">
           <button className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2" aria-label={x.done ? t("reopen") : t("complete")}>
@@ -99,7 +100,7 @@ export default async function TodosPage({
             <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={c("delete")}><Trash2 size={14} /></button>
           </form>
         )}
-      </li>
+      </div>
     );
   };
 
@@ -137,7 +138,7 @@ export default async function TodosPage({
           sections.map((g) => (
             <section key={g.key} className="card space-y-1 p-4">
               {g.heading && <h2 className="font-medium">{g.heading} <span className="text-xs text-muted tabular-nums">{g.items.length}</span></h2>}
-              <ul>{g.items.map(row)}</ul>
+              <SortableList label={t("dragReorder")} rows={g.items.map((x) => ({ id: x.id, node: row(x) }))} onReorder={reorderTodos.bind(null, id)} />
             </section>
           ))
         )}
@@ -160,7 +161,7 @@ export default async function TodosPage({
         {done.length > 0 && (
           <details className="card p-4">
             <summary className="cursor-pointer font-medium">{t("done")} <span className="text-xs text-muted tabular-nums">{done.length}</span></summary>
-            <ul className="mt-2">{done.map(row)}</ul>
+            <ul className="mt-2">{done.map((x) => <li key={x.id}>{row(x)}</li>)}</ul>
           </details>
         )}
 

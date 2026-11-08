@@ -65,3 +65,16 @@ export async function addShoppingItemForm(tripId: string, planId: string, fd: Fo
   if (!title) return;
   await addShoppingItem(tripId, planId, title);
 }
+
+/** New order for (a subset of) a plan's items: the given ids take over the positions those items already occupied. */
+export async function reorderShoppingItems(tripId: string, planId: string, ids: string[]) {
+  const { supabase } = await requireUser();
+  const wanted = z.array(z.string().uuid()).max(500).parse(ids);
+  const { data } = await supabase.from("shopping_items").select("id").eq("trip_id", tripId).eq("plan_id", planId).order("position").order("created_at");
+  const all = (data ?? []).map((r) => r.id as string);
+  const set = new Set(wanted.filter((x) => all.includes(x)));
+  const queue = wanted.filter((x) => set.has(x));
+  const finalOrder = all.map((id) => (set.has(id) ? queue.shift()! : id));
+  await Promise.all(finalOrder.map((id, i) => supabase.from("shopping_items").update({ position: i }).eq("id", id).eq("trip_id", tripId)));
+  refresh(tripId);
+}
