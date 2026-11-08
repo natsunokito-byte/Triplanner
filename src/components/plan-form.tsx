@@ -60,6 +60,7 @@ export function PlanForm({
   const [pFee, setPFee] = useState(plan?.photographer_fee != null ? String(plan.photographer_fee) : "");
   const [sFee, setSFee] = useState(plan?.studio_fee != null ? String(plan.studio_fee) : "");
   const [todoLines, setTodoLines] = useState<TodoLine[]>([]);
+  const [focusIdx, setFocusIdx] = useState<number | null>(null);
   const [selected, setSelected] = useState<string[]>(planPeople);
 
   const ownerOnly = visibility === "owner_only";
@@ -87,7 +88,18 @@ export function PlanForm({
         <input type="hidden" name="new_todos" value={JSON.stringify(cleanTodos)} />
         {todoLines.map((x, i) => (
           <div key={i} className={`grid items-center gap-2 ${categories.length > 0 ? "grid-cols-[1fr_8rem_auto]" : "grid-cols-[1fr_auto]"}`}>
-            <input className="input" maxLength={200} placeholder={t("planTodoPh")} value={x.title} onChange={(e) => patchTodo(i, { title: e.target.value })} />
+            <input
+              className="input" maxLength={200} placeholder={t("planTodoPh")} value={x.title} autoFocus={focusIdx === i}
+              onChange={(e) => patchTodo(i, { title: e.target.value })}
+              onKeyDown={(e) => {
+                // Enter adds the next to-do line; it must never submit (save + close) the whole form.
+                if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+                e.preventDefault();
+                if (x.title.trim() === "") return;
+                setTodoLines([...todoLines, { title: "", cat: "b:auto" }]);
+                setFocusIdx(todoLines.length);
+              }}
+            />
             {categories.length > 0 ? (
               <select className="input" value={x.cat} onChange={(e) => patchTodo(i, { cat: e.target.value })} aria-label={t("todoCategory")}>
                 <option value="b:auto">{t("uncategorized")}</option>
@@ -97,7 +109,7 @@ export function PlanForm({
             <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")} onClick={() => setTodoLines(todoLines.filter((_, k) => k !== i))}><X size={14} /></button>
           </div>
         ))}
-        <button type="button" className="btn btn-sm" onClick={() => setTodoLines([...todoLines, { title: "", cat: "b:auto" }])}><Plus size={14} /> {t("addPlanTodo")}</button>
+        <button type="button" className="btn btn-sm" onClick={() => { setTodoLines([...todoLines, { title: "", cat: "b:auto" }]); setFocusIdx(todoLines.length); }}><Plus size={14} /> {t("addPlanTodo")}</button>
       </fieldset>
   );
 
@@ -201,7 +213,7 @@ export function PlanForm({
         {badDuration && !isWake && <p className="col-span-2 text-xs text-danger">{t("timeError")}</p>}
       </div>
 
-      {type === "crunch" && todoBlock}
+      {TASK_TODO_TYPES.includes(type) && todoBlock}
 
       <div>
         <label className="label">{t("visibility")}</label>
@@ -284,7 +296,7 @@ export function PlanForm({
         )}
       </fieldset>
 
-      {type !== "crunch" && todoBlock}
+      {!TASK_TODO_TYPES.includes(type) && todoBlock}
 
       {type === "work" && (
         <label className="flex items-center gap-2 rounded-[8px] border border-border px-3 py-2">
