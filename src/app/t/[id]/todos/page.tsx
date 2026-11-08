@@ -147,11 +147,11 @@ export default async function TodosPage({
                       </span>
                       {hasCats && (
                         <form action={moveTodoItem.bind(null, id, x.id)} className="flex items-center gap-1">
-                          <select name="cat" defaultValue={catKeyOf(x) === "u" ? "b:none" : catKeyOf(x)} className="input !h-10 !w-auto !py-0 text-xs" aria-label={t("move")}>
+                          <select name="cat" defaultValue={catKeyOf(x) === "u" ? "b:none" : catKeyOf(x)} className="input !h-8 !w-auto !py-0 text-xs" aria-label={t("move")}>
                             <option value="b:none">{t("uncategorized")}</option>
                             {cats.map((k) => <option key={k.id} value={`c:${k.id}`}>{k.name}</option>)}
                           </select>
-                          <button className="btn">{t("move")}</button>
+                          <button className="px-1 text-sm text-primary hover:underline">{t("move")}</button>
                         </form>
                       )}
                       {src && <Link href={src} className="text-muted hover:text-text" aria-label={t("open")}><ExternalLink size={14} /></Link>}
