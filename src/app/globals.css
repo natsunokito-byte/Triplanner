@@ -21,6 +21,7 @@
   --pt-meal-bg:#ffedd5; --pt-meal-fg:#9a3412; --pt-meal:#f97316;
   --pt-work-bg:#dbeafe; --pt-work-fg:#1e40af; --pt-work:#3b82f6;
   --pt-crunch-bg:#fee2e2; --pt-crunch-fg:#991b1b; --pt-crunch:#ef4444;
+  --pt-shopping-bg:#d1fae5; --pt-shopping-fg:#065f46; --pt-shopping:#10b981;
   --pt-wake-bg:#fef9c3; --pt-wake-fg:#854d0e; --pt-wake:#eab308;
 }
 @media (prefers-color-scheme: dark) {

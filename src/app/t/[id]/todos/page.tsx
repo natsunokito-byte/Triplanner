@@ -12,6 +12,7 @@ import {
 } from "@/app/actions";
 import { groupByDate, todoDate } from "@/lib/todo-groups";
 import { localDate } from "@/lib/tz";
+import { ShoppingTab } from "./shopping-tab";
 import type { Todo } from "@/lib/types";
 
 export default async function TodosPage({
@@ -19,7 +20,7 @@ export default async function TodosPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ cat?: string; group?: string }>;
+  searchParams: Promise<{ cat?: string; group?: string; tab?: string; f?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -28,12 +29,15 @@ export default async function TodosPage({
   const locale = await getLocale();
   const supabase = await createClient();
   const [{ data: trip }, { data: catRows }, { data: todoRows }, { data: planRows }] = await Promise.all([
-    supabase.from("trips").select("id,title,timezone").eq("id", id).maybeSingle(),
+    supabase.from("trips").select("id,title,timezone,currency").eq("id", id).maybeSingle(),
     supabase.from("todo_categories").select("id,name").eq("trip_id", id).order("position").order("name"),
     supabase.from("todos").select("*").eq("trip_id", id).order("title"),
     supabase.from("plans").select("id,start_at,plan_date").eq("trip_id", id),
   ]);
   if (!trip) notFound();
+  if (sp.tab === "shopping") {
+    return <ShoppingTab id={id} filter={sp.f === "todo" || sp.f === "bought" ? sp.f : "all"} tripTitle={trip.title} tz={trip.timezone} currency={trip.currency} />;
+  }
   const cats = (catRows ?? []) as { id: string; name: string }[];
   const todos = (todoRows ?? []) as Todo[];
   const hasCats = cats.length > 0;
@@ -107,6 +111,10 @@ export default async function TodosPage({
           <Link href={`/t/${id}`} className="inline-flex items-center gap-1 text-muted hover:text-text"><ArrowLeft size={14} /> {c("back")}</Link>
           <h1 className="mt-1 text-[28px] font-semibold leading-tight">{trip.title} · {t("title")}</h1>
         </div>
+        <nav className="tabs" aria-label={t("title")}>
+          <Link href={`/t/${id}/todos`} className="tab tab-active" aria-current="page">{t("tabTasks")}</Link>
+          <Link href={`/t/${id}/todos?tab=shopping`} className="tab">{t("tabShopping")}</Link>
+        </nav>
 
         {hasCats && (
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">

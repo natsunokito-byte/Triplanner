@@ -150,7 +150,8 @@
       "wake_up": "Wake up",
       "meal": "Meal",
       "work": "Work",
-      "crunch": "Crunching"
+      "crunch": "Crunching",
+      "shopping": "Shopping"
     },
     "add": "Add plan",
     "newTitle": "Add plan",
@@ -192,7 +193,7 @@
     "dayEmpty": "No plans",
     "overlap": "Overlaps the previous plan",
     "outside": "Outside trip dates",
-    "dragHint": "Drag a card to move it to another day",
+    "dragHint": "Drag a card to another day, or between cards to start it right after the previous plan",
     "deletePlan": "Delete plan",
     "deleteConfirm": "Delete this plan?",
     "timeError": "Duration must be at least 30 minutes.",
@@ -276,7 +277,13 @@
       "min1h": "{name} has no 2-hour option."
     },
     "groupDate": "By date",
-    "groupPhotographer": "By photographer"
+    "groupPhotographer": "By photographer",
+    "shoppingList": "Shopping list",
+    "shoppingPh": "What to buy",
+    "addShopping": "Add item",
+    "shoppingNote": "Purchased amounts are added to this plan's cost automatically.",
+    "shoppingAmount": "Amount",
+    "shoppingNoteLabel": "Note"
   },
   "commute": {
     "methods": {
@@ -540,7 +547,7 @@
     "proposalHistory": "Proposal history"
   },
   "todos": {
-    "title": "Tasks",
+    "title": "Tasks & lists",
     "open": "Open",
     "done": "Done",
     "all": "All",
@@ -570,7 +577,22 @@
     "byCategory": "Category",
     "addTask": "Add a task to-do",
     "setDue": "Set date",
-    "clearDue": "Clear date"
+    "clearDue": "Clear date",
+    "tabTasks": "Tasks",
+    "tabShopping": "Shopping lists",
+    "shoppingPh": "What to buy",
+    "amount": "Amount",
+    "note": "Note",
+    "bought": "Bought",
+    "notBought": "Not bought",
+    "allItems": "All",
+    "shoppingEmpty": "No shopping plans yet. Add a plan of type Shopping and its list shows up here.",
+    "shoppingNoMatch": "Nothing matches.",
+    "itemsProgress": "{done}/{total} bought",
+    "completedPlans": "Completed shopping plans",
+    "noDateShort": "No date",
+    "removeItem": "Remove",
+    "goPlan": "Open plan"
   },
   "claim": {
     "title": "{trip}: plan claims",

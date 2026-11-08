@@ -4,7 +4,7 @@
 create extension if not exists "pgcrypto";
 
 create type plan_type as enum
-  ('breakfast','lunch','dinner','tea','workshop','cosplay_photoshoot','date','hangout','event','task','wake_up','meal','work','crunch');  -- breakfast/lunch/dinner/workshop are legacy (merged into meal / crunch)
+  ('breakfast','lunch','dinner','tea','workshop','cosplay_photoshoot','date','hangout','event','task','wake_up','meal','work','crunch','shopping');  -- breakfast/lunch/dinner/workshop are legacy (merged into meal / crunch)
 create type booking_status as enum ('confirmed','not_booked');
 create type commute_method as enum ('walk','train','subway','bus','taxi','flight','car','bike','other');
 create type payment_method as enum ('ticket','ic_card','cash');
@@ -182,6 +182,20 @@ create table photographers (
 );
 create index photographers_owner_idx on photographers (owner_id, position);
 
+create table shopping_items (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references trips(id) on delete cascade,
+  plan_id uuid not null references plans(id) on delete cascade,
+  title text not null,
+  done boolean not null default false,
+  amount numeric(12,2),
+  currency text,
+  note text,
+  position int not null default 0,
+  created_at timestamptz default now()
+);
+create index shopping_items_plan_idx on shopping_items (plan_id, position);
+
 create table todo_categories (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references trips(id) on delete cascade,
@@ -304,7 +318,7 @@ create table fx_rates (
 do $$
 declare t text;
 begin
-  foreach t in array array['trips','people','hotels','plans','plan_people','plan_photos','commutes','todos','todo_categories','plan_cost_items','commute_stops','viewer_sessions','viewer_otps','fx_rates','availability_blocks','plan_requests','plan_claims','plan_proposals']
+  foreach t in array array['trips','people','hotels','plans','plan_people','plan_photos','commutes','todos','todo_categories','plan_cost_items','commute_stops','viewer_sessions','viewer_otps','fx_rates','availability_blocks','plan_requests','plan_claims','plan_proposals','shopping_items']
   loop
     execute format('alter table %I enable row level security', t);
   end loop;
@@ -319,6 +333,7 @@ create policy commutes_owner on commutes for all using (exists (select 1 from tr
 create policy todos_owner    on todos    for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
 alter table photographers enable row level security;
 create policy photographers_owner on photographers for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+create policy shopping_items_owner on shopping_items for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
 create policy todo_categories_owner on todo_categories for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
 create policy plan_cost_items_owner on plan_cost_items for all using (exists (select 1 from plans p join trips x on x.id = p.trip_id where p.id = plan_id and x.owner_id = auth.uid()));
 create policy commute_stops_owner on commute_stops for all using (exists (select 1 from commutes c join trips x on x.id = c.trip_id where c.id = commute_id and x.owner_id = auth.uid()));

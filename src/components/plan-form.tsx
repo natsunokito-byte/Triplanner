@@ -7,6 +7,7 @@ import { UsdHint } from "./fx";
 import { PLAN_ICON, SELECTABLE_TYPES, canOpenClaim, TASK_TODO_TYPES, VISIBILITIES, ptVars, type PlanType, type Visibility } from "@/lib/plan-types";
 import { formatHours, hoursToMinutes, planTotal } from "@/lib/cost";
 import { photographerFee, type Photographer } from "@/lib/photographers";
+import { CurrencyList, ShoppingItemRow, type ShoppingItem } from "./shopping-item-row";
 import { Check, Circle, Plus, X } from "lucide-react";
 import { deletePlanTodo, togglePlanTodo } from "@/app/actions";
 import type { Person, Plan } from "@/lib/types";
@@ -30,6 +31,7 @@ export function PlanForm({
   categories = [],
   savedTodos = [],
   photographers = [],
+  shoppingItems = [],
 }: {
   action: (fd: FormData) => Promise<void>;
   plan?: Plan;
@@ -48,6 +50,8 @@ export function PlanForm({
   /** already-saved to-dos of this plan (edit mode), shown in the same block as the new-to-do fields */
   savedTodos?: { id: string; title: string; done: boolean }[];
   photographers?: Photographer[];
+  /** saved shopping-list items of this plan (edit mode, type shopping) */
+  shoppingItems?: ShoppingItem[];
 }) {
   const t = useTranslations("plan");
   const [type, setType] = useState<PlanType>(plan?.type ?? defaults.type);
@@ -102,9 +106,18 @@ export function PlanForm({
 
   const todoBlock = (
       <fieldset hidden={isWake} className="space-y-2">
-        <legend className="label">{TASK_TODO_TYPES.includes(type) ? t("taskTodos") : t("planTodos")}</legend>
+        <legend className="label">{type === "shopping" ? t("shoppingList") : TASK_TODO_TYPES.includes(type) ? t("taskTodos") : t("planTodos")}</legend>
         <input type="hidden" name="new_todos" value={JSON.stringify(cleanTodos)} />
-        {plan && saved.length > 0 && (
+        {plan && type === "shopping" && plan.type === "shopping" && (
+          <>
+            <CurrencyList />
+            <ul className="divide-y divide-border">
+              {shoppingItems.map((it) => <ShoppingItemRow key={it.id} tripId={plan.trip_id} item={it} tripCurrency={currency} />)}
+            </ul>
+            {shoppingItems.length > 0 && <p className="text-xs text-muted">{t("shoppingNote")}</p>}
+          </>
+        )}
+        {plan && type !== "shopping" && saved.length > 0 && (
           <ul className="space-y-1">
             {saved.map((todo) => (
               <li key={todo.id} className="flex min-h-10 items-center gap-2">
@@ -132,9 +145,9 @@ export function PlanForm({
           </ul>
         )}
         {todoLines.map((x, i) => (
-          <div key={i} className={`grid items-center gap-2 ${categories.length > 0 ? "grid-cols-[1fr_8rem_auto]" : "grid-cols-[1fr_auto]"}`}>
+          <div key={i} className={`grid items-center gap-2 ${categories.length > 0 && type !== "shopping" ? "grid-cols-[1fr_8rem_auto]" : "grid-cols-[1fr_auto]"}`}>
             <input
-              className="input" maxLength={200} placeholder={t("planTodoPh")} value={x.title} autoFocus={focusIdx === i}
+              className="input" maxLength={200} placeholder={type === "shopping" ? t("shoppingPh") : t("planTodoPh")} value={x.title} autoFocus={focusIdx === i}
               onChange={(e) => patchTodo(i, { title: e.target.value })}
               onKeyDown={(e) => {
                 // Enter adds the next to-do line; it must never submit (save + close) the whole form.
@@ -145,7 +158,7 @@ export function PlanForm({
                 setFocusIdx(todoLines.length);
               }}
             />
-            {categories.length > 0 ? (
+            {categories.length > 0 && type !== "shopping" ? (
               <select className="input" value={x.cat} onChange={(e) => patchTodo(i, { cat: e.target.value })} aria-label={t("todoCategory")}>
                 <option value="b:auto">{t("uncategorized")}</option>
                 {categories.map((c) => <option key={c.id} value={`c:${c.id}`}>{c.name}</option>)}
@@ -154,7 +167,7 @@ export function PlanForm({
             <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")} onClick={() => setTodoLines(todoLines.filter((_, k) => k !== i))}><X size={14} /></button>
           </div>
         ))}
-        <button type="button" className="btn btn-sm" onClick={() => { setTodoLines([...todoLines, { title: "", cat: "b:auto" }]); setFocusIdx(todoLines.length); }}><Plus size={14} /> {t("addPlanTodo")}</button>
+        <button type="button" className="btn btn-sm" onClick={() => { setTodoLines([...todoLines, { title: "", cat: "b:auto" }]); setFocusIdx(todoLines.length); }}><Plus size={14} /> {type === "shopping" ? t("addShopping") : t("addPlanTodo")}</button>
       </fieldset>
   );
 

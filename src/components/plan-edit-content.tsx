@@ -25,7 +25,7 @@ export async function EditPlanContent({ id, planId, back, intercepted }: { id: s
   const te = await getTranslations("export");
   const locale = await getLocale();
   const supabase = await createClient();
-  const [{ data: tripRow }, { data: planRow }, { data: peopleRows }, { data: ppRows }, { data: todoRows }, { data: photoRows }, { data: itemRows }, { data: catRows }, { data: claimRows }, { data: photographerRows }] = await Promise.all([
+  const [{ data: tripRow }, { data: planRow }, { data: peopleRows }, { data: ppRows }, { data: todoRows }, { data: photoRows }, { data: itemRows }, { data: catRows }, { data: claimRows }, { data: photographerRows }, { data: shoppingRows }] = await Promise.all([
     supabase.from("trips").select("*").eq("id", id).maybeSingle(),
     supabase.from("plans").select("*").eq("id", planId).eq("trip_id", id).maybeSingle(),
     supabase.from("people").select("*").eq("trip_id", id).order("is_me", { ascending: false }).order("name"),
@@ -36,6 +36,7 @@ export async function EditPlanContent({ id, planId, back, intercepted }: { id: s
     supabase.from("todo_categories").select("id,name").eq("trip_id", id).order("position"),
     supabase.from("plan_claims").select("id,claimer_name,message").eq("plan_id", planId).eq("status", "pending").order("created_at"),
     supabase.from("photographers").select("id,name,rate_1h,rate_2h").order("position"),
+    supabase.from("shopping_items").select("id,title,done,amount,currency,note").eq("plan_id", planId).order("position"),
   ]);
   if (!tripRow || !planRow) notFound();
   const trip = tripRow as Trip;
@@ -92,6 +93,7 @@ export async function EditPlanContent({ id, planId, back, intercepted }: { id: s
             categories={(catRows ?? []) as { id: string; name: string }[]}
             savedTodos={planTodos.map((x) => ({ id: x.id, title: x.title, done: x.done }))}
             photographers={photographers(photographerRows)}
+            shoppingItems={(shoppingRows ?? []).map((r) => ({ id: r.id as string, title: r.title as string, done: r.done as boolean, amount: r.amount == null ? null : Number(r.amount), currency: r.currency as string | null, note: r.note as string | null }))}
             planPeople={(ppRows ?? []).map((r) => r.person_id as string)}
             people={(peopleRows ?? []) as Person[]}
             tz={trip.timezone}

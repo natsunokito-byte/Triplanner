@@ -1,5 +1,6 @@
 "use server";
 
+import { recomputeShoppingCost } from "@/lib/plan-cost";
 import { photographerFee } from "@/lib/photographers";
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
@@ -484,6 +485,13 @@ async function insertPlanTodos(
   planType: string,
 ) {
   if (list.length === 0) return;
+  if (planType === "shopping") {
+    const { data: last } = await supabase.from("shopping_items").select("position").eq("plan_id", planId).order("position", { ascending: false }).limit(1).maybeSingle();
+    const base = ((last?.position as number | undefined) ?? -1) + 1;
+    const { error } = await supabase.from("shopping_items").insert(list.map((x, i) => ({ trip_id: tripId, plan_id: planId, title: x.title, position: base + i })));
+    if (error) throw new Error(error.message);
+    return;
+  }
   const { data: cats } = await supabase.from("todo_categories").select("id").eq("trip_id", tripId);
   const valid = new Set((cats ?? []).map((c) => c.id as string));
   const rows = list.map((x, i) => {
@@ -516,6 +524,7 @@ export async function updatePlan(tripId: string, planId: string, fd: FormData) {
   if (error) throw new Error(error.message);
   await saveCostItems(supabase, planId, items);
   if (fd.get("autosave") !== "1") await insertPlanTodos(supabase, tripId, planId, newTodos, values.type); // typed-but-uncommitted to-dos wait for the explicit Save
+  if (values.type === "shopping") await recomputeShoppingCost(supabase, tripId, planId); // adds purchased list amounts
   await freezePlanRate(supabase, tripId, planId); // currency may have changed on an already-completed plan
   await syncPlanPeople(supabase, tripId, planId, personIds);
   revalidatePath(`/t/${tripId}`, "layout");
@@ -612,6 +621,15 @@ export async function movePlanToDay(tripId: string, planId: string, date: string
     patch = { plan_date: date };
   }
   const { error } = await supabase.from("plans").update(patch).eq("id", planId).eq("trip_id", tripId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/t/${tripId}`, "layout");
+}
+
+/** Drag-to-reorder: set an exact start time (ISO) for a plan; the duration is unchanged so the end moves with it. */
+export async function placePlan(tripId: string, planId: string, startIso: string) {
+  const { supabase } = await requireUser();
+  const start = z.string().datetime().parse(startIso);
+  const { error } = await supabase.from("plans").update({ start_at: start, plan_date: null, plan_time: null }).eq("id", planId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
   revalidatePath(`/t/${tripId}`, "layout");
 }

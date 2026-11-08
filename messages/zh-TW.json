@@ -150,7 +150,8 @@
       "wake_up": "起床",
       "meal": "用餐",
       "work": "工作",
-      "crunch": "修羅場"
+      "crunch": "修羅場",
+      "shopping": "購物"
     },
     "add": "新增行程",
     "newTitle": "新增行程",
@@ -192,7 +193,7 @@
     "dayEmpty": "沒有行程",
     "overlap": "與前一個行程時間重疊",
     "outside": "旅行日期之外",
-    "dragHint": "拖曳卡片可換日",
+    "dragHint": "拖曳卡片可換日；放到其他卡片之間會自動接在前一個行程之後",
     "deletePlan": "刪除行程",
     "deleteConfirm": "確定刪除這個行程？",
     "timeError": "時長至少 30 分鐘。",
@@ -276,7 +277,13 @@
       "min1h": "{name} 沒有 2 小時以上的方案。"
     },
     "groupDate": "依日期",
-    "groupPhotographer": "依攝影師"
+    "groupPhotographer": "依攝影師",
+    "shoppingList": "購物清單",
+    "shoppingPh": "想買什麼",
+    "addShopping": "新增項目",
+    "shoppingNote": "已購買的金額會自動加進這個行程的費用。",
+    "shoppingAmount": "金額",
+    "shoppingNoteLabel": "備註"
   },
   "commute": {
     "methods": {
@@ -540,7 +547,7 @@
     "proposalHistory": "提議紀錄"
   },
   "todos": {
-    "title": "任務",
+    "title": "任務與清單",
     "open": "未完成",
     "done": "已完成",
     "all": "全部",
@@ -570,7 +577,22 @@
     "byCategory": "分類",
     "addTask": "新增任務待辦",
     "setDue": "設定日期",
-    "clearDue": "清除日期"
+    "clearDue": "清除日期",
+    "tabTasks": "任務",
+    "tabShopping": "購物清單",
+    "shoppingPh": "想買什麼",
+    "amount": "金額",
+    "note": "備註",
+    "bought": "已購買",
+    "notBought": "尚未購買",
+    "allItems": "全部",
+    "shoppingEmpty": "還沒有購物行程。新增類型為「購物」的行程後，清單會出現在這裡。",
+    "shoppingNoMatch": "沒有符合的項目。",
+    "itemsProgress": "{done}/{total} 已購買",
+    "completedPlans": "已完成的購物行程",
+    "noDateShort": "未排日期",
+    "removeItem": "移除",
+    "goPlan": "前往行程"
   },
   "claim": {
     "title": "{trip}：行程認養",

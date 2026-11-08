@@ -6,7 +6,8 @@ import { useLocale, useTranslations } from "next-intl";
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, Building2, Camera, Check, Copy, EyeOff, Hand, Users, MapPin, Plus } from "lucide-react";
 import { WakeUpButton } from "./wake-up-button";
-import { duplicatePlanToSameDay, movePlanToDay, setPlanCompleted } from "@/app/actions";
+import { duplicatePlanToSameDay, movePlanToDay, placePlan, setPlanCompleted } from "@/app/actions";
+import { placeStart } from "@/lib/reorder";
 import { METHOD_ICON, type Method, type Payment } from "@/lib/commute";
 import { Money, useFx } from "./fx";
 import { toTrip } from "@/lib/money";
@@ -50,11 +51,13 @@ export function DayBoard({
   const [, startTransition] = useTransition();
   const [over, setOver] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [overCard, setOverCard] = useState<{ id: string; before: boolean } | null>(null);
 
-  const [optPlans, moveOptimistic] = useOptimistic(plans, (state, m: { kind: "move"; id: string; date: string } | { kind: "complete"; id: string; completed: boolean }) =>
+  const [optPlans, moveOptimistic] = useOptimistic(plans, (state, m: { kind: "move"; id: string; date: string } | { kind: "complete"; id: string; completed: boolean } | { kind: "place"; id: string; startIso: string }) =>
     state.map((p) => {
       if (p.id !== m.id) return p;
       if (m.kind === "complete") return { ...p, completed: m.completed };
+      if (m.kind === "place") return { ...p, start_at: m.startIso };
       if (!p.start_at) return { ...p, plan_date: m.date };
       return { ...p, start_at: localToUtc(`${m.date}T${utcToLocal(p.start_at, tz).slice(11)}`, tz).toISOString() };
     }),
@@ -79,6 +82,29 @@ export function DayBoard({
     startTransition(async () => {
       moveOptimistic({ kind: "move", id, date });
       try { await movePlanToDay(tripId, id, date); } catch { setFailed(true); }
+    });
+  }
+
+  /** Dropped on/between scheduled cards: take the start time from the neighbours (previous end + travel). */
+  function dropOnCard(list: BoardPlan[], wakes: BoardPlan[], targetId: string, before: boolean, draggedId: string) {
+    setOverCard(null);
+    setOver(null);
+    const dragged = optPlans.find((x) => x.id === draggedId);
+    if (!dragged || dragged.id === targetId || dragged.type === "wake_up") return;
+    const others = list.filter((x) => x.id !== draggedId).map((x) => ({ id: x.id, startMs: Date.parse(x.start_at!), endMs: Date.parse(x.start_at!) + x.duration_min * 60000 }));
+    const at = others.findIndex((x) => x.id === targetId);
+    if (at < 0) return;
+    const startMs = placeStart({
+      others, index: before ? at : at + 1, durationMs: dragged.duration_min * 60000,
+      travelMin: (prevId) => commutes.find((x) => x.from_plan_id === prevId)?.duration_min ?? 0,
+      floorMs: wakes[0]?.start_at ? Date.parse(wakes[0].start_at) : null,
+    });
+    if (startMs == null) return;
+    const startIso = new Date(Math.round(startMs / 60000) * 60000).toISOString();
+    setFailed(false);
+    startTransition(async () => {
+      moveOptimistic({ kind: "place", id: draggedId, startIso });
+      try { await placePlan(tripId, draggedId, startIso); } catch { setFailed(true); }
     });
   }
 
@@ -275,7 +301,24 @@ export function DayBoard({
                   const overlap = prevEnd > startMs;
                   prevEnd = Math.max(prevEnd, endMs);
                   return (
-                    <li key={p.id}>
+                    <li
+                      key={p.id}
+                      className={overCard?.id === p.id ? (overCard.before ? "rounded-md border-t-2 border-primary" : "rounded-md border-b-2 border-primary") : ""}
+                      onDragOver={(e) => {
+                        e.preventDefault(); e.stopPropagation();
+                        const r = e.currentTarget.getBoundingClientRect();
+                        const before = e.clientY < r.top + r.height / 2;
+                        setOver(null);
+                        setOverCard((cur) => (cur?.id === p.id && cur.before === before ? cur : { id: p.id, before }));
+                      }}
+                      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOverCard((cur) => (cur?.id === p.id ? null : cur)); }}
+                      onDrop={(e) => {
+                        e.preventDefault(); e.stopPropagation();
+                        const id = e.dataTransfer.getData("text/plain");
+                        const r = e.currentTarget.getBoundingClientRect();
+                        if (id) dropOnCard(list, wakes, p.id, e.clientY < r.top + r.height / 2, id);
+                      }}
+                    >
                       {overlap && (
                         <div className="mb-1 flex items-center gap-1 text-[11px] text-warning"><AlertTriangle size={12} /> {t("overlap")}</div>
                       )}
