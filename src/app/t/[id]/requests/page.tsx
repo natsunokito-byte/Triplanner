@@ -20,8 +20,10 @@ export default async function Requests({ params }: { params: Promise<{ id: strin
   const tp = await getTranslations("plan");
   const tc = await getTranslations("claim");
   const supabase = await createClient();
-  const { data: tripRow } = await supabase.from("trips").select("id,title,timezone,availability_enabled,availability_public,availability_token").eq("id", id).maybeSingle();
-  if (!tripRow) notFound();
+  const { data: tripRow } = await supabase.from("trips").select("id,owner_id,title,timezone,availability_enabled,availability_public,availability_token").eq("id", id).maybeSingle();
+  const { data: auth } = await supabase.auth.getUser();
+  // Owner only (also enforced by RLS): the link, switch and claimant emails never render for anyone else.
+  if (!tripRow || !auth.user || (tripRow as { owner_id: string }).owner_id !== auth.user.id) notFound();
   const trip = tripRow as unknown as { id: string; title: string; timezone: string; availability_enabled: boolean; availability_public: boolean; availability_token: string };
   await expireOldClaims(supabase, id);
   const [{ data: reqs, error: claimsErr }, { data: people }, { data: planRows, error: plansErr }] = await Promise.all([
