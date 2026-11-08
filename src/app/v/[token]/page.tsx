@@ -15,19 +15,14 @@ import { shapeForViewer, type RawInput, type Viewer } from "@/lib/viewer-access"
 import { cookieName, verifySession } from "@/lib/viewer-session";
 import { signOutViewer } from "./actions";
 import { VerifyForm } from "./verify-form";
-import { FreeTime } from "@/components/free-time";
-import { dayWindow } from "@/lib/availability";
-import { loadFreeSlots, type AvailTrip } from "@/lib/request-core";
-import { submitViewerRequest } from "./actions";
 import { ViewerBoard, type ViewerPhoto } from "./viewer-board";
 
 export const dynamic = "force-dynamic";
 
 export default async function ViewerPage({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ view?: string; tab?: string }> }) {
   const { token } = await params;
-  const { view, tab: tabParam } = await searchParams;
+  const { view } = await searchParams;
   const t = await getTranslations("viewer");
-  const tf = await getTranslations("free");
   const admin = createAdminClient();
   const secret = process.env.VIEWER_COOKIE_SECRET;
   if (!admin || !secret || secret.length < 32) {
@@ -56,29 +51,6 @@ export default async function ViewerPage({ params, searchParams }: { params: Pro
 
   // Role is recomputed from the DB on every request — revoking can_view_all takes effect immediately.
   const viewer: Viewer = { personId: person.id, role: person.can_view_all ? "full" : "restricted" };
-
-  const availOn = trip.availability_enabled === true;
-  const tabLink = (active: boolean) => `btn btn-sm ${active ? "btn-primary" : ""}`;
-  if (availOn && tabParam === "free") {
-    const at = trip as unknown as AvailTrip;
-    const slots = await loadFreeSlots(admin, at);
-    const windows = eachDay(trip.start_date, trip.end_date).map((day) => ({ day, ...dayWindow(trip.timezone, day, trip.avail_day_start, trip.avail_day_end) }));
-    return (
-      <>
-        <AppHeader signedIn={false} />
-        <main className="mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-8">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-[28px] font-semibold leading-tight">{trip.title}</h1>
-            <div className="flex gap-2">
-              <Link href={`/v/${token}`} className={tabLink(false)}>{t("itinerary")}</Link>
-              <Link href={`/v/${token}?tab=free`} className={tabLink(true)}>{tf("tab")}</Link>
-            </div>
-          </div>
-          <FreeTime tz={trip.timezone} windows={windows} slots={slots} action={submitViewerRequest.bind(null, token)} defaultName={person.name} verifiedEmail={session.e} />
-        </main>
-      </>
-    );
-  }
 
   const [{ data: plans }, { data: people }, { data: hotels }, { data: commutes }] = await Promise.all([
     admin.from("plans").select("*").eq("trip_id", trip.id),
@@ -153,12 +125,6 @@ export default async function ViewerPage({ params, searchParams }: { params: Pro
             <p className="text-xs text-muted">{person.name} · {t("readOnly")}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {availOn && (
-              <>
-                <Link href={`/v/${token}`} className={tab(true)}>{t("itinerary")}</Link>
-                <Link href={`/v/${token}?tab=free`} className={tab(false)}>{tf("tab")}</Link>
-              </>
-            )}
             {viewer.role === "full" && (
               <>
                 <Link href={`/v/${token}?view=all`} className={tab(data.mode === "all")}>{t("viewAll")}</Link>

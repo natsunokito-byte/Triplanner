@@ -1,6 +1,5 @@
 "use server";
 
-import { updateAvailability } from "./availability-actions";
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -10,7 +9,7 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { localDate, localToUtc, utcToLocal } from "@/lib/tz";
 import { rateForDay } from "@/lib/fx";
-import { PLAN_TYPES, TASK_TODO_TYPES, VISIBILITIES, type PlanType } from "@/lib/plan-types";
+import { PLAN_TYPES, TASK_TODO_TYPES, canOpenClaim, VISIBILITIES, type PlanType } from "@/lib/plan-types";
 import { planTotal, type CostItem } from "@/lib/cost";
 import { resolveSchedule, safeBack } from "@/lib/schedule";
 import { METHODS, PAYMENTS } from "@/lib/commute";
@@ -165,7 +164,7 @@ export async function savePerson(tripId: string, personId: string, fd: FormData)
   revalidatePath(`/t/${tripId}/settings`);
 }
 
-/** One save for the whole settings drawer: trip, availability window, sharing toggles, every person row, and an optional new person. */
+/** One save for the whole settings drawer: trip, open-claim page switch, sharing toggles, every person row, and an optional new person. */
 export async function saveSettings(id: string, fd: FormData) {
   const { supabase } = await requireUser();
   // Parse everything first so a bad value fails before anything is written.
@@ -174,10 +173,16 @@ export async function saveSettings(id: string, fd: FormData) {
   const rows = ids.map((pid) => ({ pid, v: parsePerson(fd, `p:${pid}:`) }));
   const newName = String(fd.get("new:name") ?? "").trim();
   const added = newName ? parsePerson(fd, "new:") : null;
-  await updateAvailability(id, fd);
   const { error } = await supabase
     .from("trips")
-    .update({ ...trip, share_enabled: fd.get("share_enabled") === "on", viewers_see_costs: fd.get("viewers_see_costs") === "on" })
+    .update({
+      ...trip,
+      share_enabled: fd.get("share_enabled") === "on",
+      viewers_see_costs: fd.get("viewers_see_costs") === "on",
+      // One switch for the public open-claim page (enabled + public always move together).
+      availability_enabled: fd.get("availability_enabled") === "on",
+      availability_public: fd.get("availability_enabled") === "on",
+    })
     .eq("id", id);
   if (error) throw new Error(error.message);
   for (const r of rows) {
@@ -347,6 +352,8 @@ const planSchema = z.object({
   photographer_name: optText(120),
   studio_name: optText(120),
   has_meeting: z.boolean(),
+  open_claim: z.boolean(),
+  claim_proposal: optText(500),
   photographer_fee: z.string().trim().transform((s) => (s === "" ? null : Number(s))).pipe(z.number().min(0).max(1e9).nullable()),
   studio_fee: z.string().trim().transform((s) => (s === "" ? null : Number(s))).pipe(z.number().min(0).max(1e9).nullable()),
   new_todos: z.array(z.object({ title: z.string().trim().min(1).max(200), cat: z.string().max(60) })).max(30),
@@ -392,6 +399,8 @@ async function parsePlan(supabase: Awaited<ReturnType<typeof createClient>>, tri
     photographer_name: String(fd.get("photographer_name") ?? ""),
     studio_name: String(fd.get("studio_name") ?? ""),
     has_meeting: fd.get("has_meeting") === "on",
+    open_claim: fd.get("open_claim") === "on",
+    claim_proposal: String(fd.get("claim_proposal") ?? ""),
     photographer_fee: String(fd.get("photographer_fee") ?? ""),
     studio_fee: String(fd.get("studio_fee") ?? ""),
     new_todos: jsonField("new_todos"),
@@ -420,6 +429,9 @@ async function parsePlan(supabase: Awaited<ReturnType<typeof createClient>>, tri
       photographer_name: isCosplay ? rest.photographer_name : null,
       studio_name: isCosplay ? rest.studio_name : null,
       has_meeting: rest.type === "work" ? rest.has_meeting : false,
+      // Only normal-visibility "invite-able" types can be opened for claiming.
+      open_claim: canOpenClaim(rest.type, rest.visibility) && rest.open_claim,
+      claim_proposal: canOpenClaim(rest.type, rest.visibility) && rest.open_claim ? rest.claim_proposal : null,
       photographer_fee,
       studio_fee,
       // plans.cost is always the computed total (server-side; the client preview is advisory only)
@@ -516,7 +528,7 @@ async function clonePlan(
   void [_id, _c, _t, _d, _ca, _u];
   const { data: copy, error } = await supabase
     .from("plans")
-    .insert({ ...keep, title: `${String(src.title).slice(0, 140)} ${t("copySuffix")}`, completed: false, ...overrides })
+    .insert({ ...keep, title: `${String(src.title).slice(0, 140)} ${t("copySuffix")}`, completed: false, open_claim: false, claim_proposal: null, ...overrides })
     .select("id")
     .single();
   if (error || !copy) throw new Error(error?.message ?? "copy failed");

@@ -6,10 +6,8 @@ import { SettingsForm } from "@/components/settings-form";
 import { TripForm } from "@/components/trip-form";
 import { ConfirmButton } from "@/components/confirm-button";
 import { CopyButton } from "@/components/copy-button";
-import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
-import { addBlock, deleteBlock, regenerateAvailabilityToken, unblockEmail } from "@/app/availability-actions";
-import { utcToLocal } from "@/lib/tz";
+import { regenerateAvailabilityToken, unblockEmail } from "@/app/availability-actions";
 import { deletePerson, deleteTrip, regenerateShareToken, saveSettings } from "@/app/actions";
 import type { Person, Trip } from "@/lib/types";
 
@@ -31,7 +29,6 @@ export async function SettingsContent({ id, back, intercepted }: { id: string; b
     availability_enabled: boolean; availability_public: boolean; availability_token: string; avail_day_start: string; avail_day_end: string;
     avail_buffer_min: number; avail_min_notice_hours: number; availability_blocked_emails: string[];
   };
-  const { data: blockRows } = await supabase.from("availability_blocks").select("*").eq("trip_id", id).order("start_at");
   const availLink = `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/a/${av.availability_token}`;
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const link = `${site}/v/${trip.share_token}`;
@@ -49,14 +46,7 @@ export async function SettingsContent({ id, back, intercepted }: { id: string; b
 
         <section className="card p-5 space-y-3">
           <h2 className="font-semibold">{a("title")}</h2>
-          <label className="flex items-center gap-2"><input type="checkbox" name="availability_enabled" defaultChecked={av.availability_enabled} /> {a("enabled")}</label>
-          <label className="flex items-start gap-2"><input type="checkbox" name="availability_public" defaultChecked={av.availability_public} className="mt-1" /> {a("public")}</label>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <label className="space-y-1"><span className="text-xs text-muted">{a("dayStart")}</span><input type="time" name="avail_day_start" className="input" defaultValue={av.avail_day_start.slice(0, 5)} required /></label>
-            <label className="space-y-1"><span className="text-xs text-muted">{a("dayEnd")}</span><input type="time" name="avail_day_end" className="input" defaultValue={av.avail_day_end.slice(0, 5)} required /></label>
-            <label className="space-y-1"><span className="text-xs text-muted">{a("buffer")}</span><input type="number" name="avail_buffer_min" min={0} max={240} step={5} className="input" defaultValue={av.avail_buffer_min} /></label>
-            <label className="space-y-1"><span className="text-xs text-muted">{a("notice")}</span><input type="number" name="avail_min_notice_hours" min={0} max={336} className="input" defaultValue={av.avail_min_notice_hours} /></label>
-          </div>
+          <label className="flex items-start gap-2"><input type="checkbox" name="availability_enabled" defaultChecked={av.availability_enabled && av.availability_public} className="mt-1" /> {a("enabled")}</label>
           <p className="text-xs text-muted">{a("hint")}</p>
         </section>
 
@@ -119,26 +109,6 @@ export async function SettingsContent({ id, back, intercepted }: { id: string; b
           <p className="text-xs text-muted">{a("publicOff")}</p>
         )}
         <form action={regenerateAvailabilityToken.bind(null, id)}><button className="btn btn-sm">{a("regenerate")}</button></form>
-
-        <div className="space-y-2 border-t border-border pt-4">
-          <h3 className="font-medium">{a("blocks")}</h3>
-          {(blockRows ?? []).length === 0 && <p className="text-xs text-muted">{a("noBlocks")}</p>}
-          <ul className="space-y-1">
-            {(blockRows ?? []).map((b) => (
-              <li key={b.id} className="flex items-center justify-between gap-2 text-sm">
-                <span className="tabular-nums">{utcToLocal(b.start_at, trip.timezone).replace("T", " ")} → {utcToLocal(b.end_at, trip.timezone).replace("T", " ")}{b.note ? ` · ${b.note}` : ""}</span>
-                <form action={deleteBlock.bind(null, id, b.id)}><button className="btn btn-sm" aria-label="delete"><Trash2 size={14} /></button></form>
-              </li>
-            ))}
-          </ul>
-          <form action={addBlock.bind(null, id)} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
-            <input type="datetime-local" name="start" className="input" required aria-label={a("blockStart")} />
-            <input type="datetime-local" name="end" className="input" required aria-label={a("blockEnd")} />
-            <input name="note" className="input" maxLength={200} placeholder={a("blockNote")} />
-            <SubmitButton className="btn-sm">{a("addBlock")}</SubmitButton>
-          </form>
-        </div>
-
         {av.availability_blocked_emails.length > 0 && (
           <div className="space-y-1 border-t border-border pt-4">
             <h3 className="font-medium">{a("blockedEmails")}</h3>

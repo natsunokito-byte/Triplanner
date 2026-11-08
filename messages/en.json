@@ -65,16 +65,16 @@
     "seeCosts": "Full-access viewers can see costs",
     "hint": "Invitees must verify their email and only see plans they're part of.",
     "avail": {
-      "title": "Make a plan",
-      "enabled": "Enable “Make a plan”",
+      "title": "Open-claim page",
+      "enabled": "Turn on the open-claim page (anyone with the link sees your open plans and can ask to join)",
       "public": "Public free-time link (no verification to view; email is verified when sending a request)",
-      "link": "Free-time link",
-      "regenerate": "Regenerate free-time link",
+      "link": "Claim link",
+      "regenerate": "Regenerate link",
       "dayStart": "Window starts",
       "dayEnd": "Window ends",
       "buffer": "Buffer around busy time (min)",
       "notice": "Minimum notice (hours)",
-      "hint": "Only free slots are shown — never plan titles, places or people. A leaked link exposes when you're free, so rotate it when needed.",
+      "hint": "Only plans you marked \"open for claims\" appear, showing just title, type, date/time, place and proposal; costs, notes and everything else stay private. A leaked link exposes those plans, so regenerate it from time to time.",
       "blocks": "Manual unavailable times",
       "blockStart": "From",
       "blockEnd": "To",
@@ -83,7 +83,7 @@
       "blockedEmails": "Blocked emails",
       "unblock": "Unblock",
       "noBlocks": "No manual blocks.",
-      "publicOff": "Not public yet — tick the public option above first."
+      "publicOff": "Not on yet: tick the option above and save."
     }
   },
   "people": {
@@ -255,7 +255,12 @@
     "hasMeeting": "There are meetings in this block",
     "meetingPill": "Meetings",
     "wakeUp": "Wake-up time",
-    "wakeClear": "Clear"
+    "wakeClear": "Clear",
+    "openClaim": "Open for claims",
+    "openClaimHint": "When on, this plan appears on the public claim page. Anyone with the link can ask to join and you decide whether to accept.",
+    "claimProposal": "Proposal (optional)",
+    "claimProposalPh": "e.g. Ramen first, then browse a bookstore",
+    "openClaimPill": "Open"
   },
   "commute": {
     "methods": {
@@ -475,16 +480,16 @@
     "tab": "Make a plan"
   },
   "requests": {
-    "title": "Requests",
+    "title": "Claims",
     "back": "Back",
     "pending": "Pending",
-    "none": "No pending requests.",
+    "none": "No pending claims.",
     "history": "History",
     "tzNote": "Times are trip-local ({tz}).",
     "newPerson": "New",
     "replyPh": "Reply (optional, emailed to them)",
     "block": "Block this email (no more requests)",
-    "accept": "Accept & add plan",
+    "accept": "Accept and add to plan",
     "decline": "Decline",
     "err": {
       "conflict": "That slot is no longer free, so it can't be accepted.",
@@ -498,7 +503,8 @@
       "cancelled": "Cancelled",
       "pending": "Pending"
     },
-    "badge": "Requests"
+    "badge": "Claims",
+    "claimed": "wants to join: {plan}"
   },
   "todos": {
     "title": "To-dos",
@@ -530,5 +536,30 @@
     "byDate": "Date",
     "byCategory": "Category",
     "addTask": "Add a task to-do"
+  },
+  "claim": {
+    "title": "{trip}: open plans",
+    "subtitle": "These plans are open to join. Pick one, leave your name and email, and you'll get an email once it's confirmed.",
+    "tzNote": "Times are in the trip's local time ({tz}).",
+    "none": "No plans are open right now.",
+    "timeTbd": "time TBD",
+    "dateTbd": "date TBD",
+    "claim": "I'd like to join",
+    "name": "Your name",
+    "email": "Your email",
+    "message": "Message (optional)",
+    "submit": "Send",
+    "cancel": "Cancel",
+    "sent": "Sent! You'll get an email once they confirm.",
+    "privacy": "Your name and email are only seen by the plan's owner.",
+    "err": {
+      "invalid": "Please check your name and email.",
+      "blocked": "Can't send right now.",
+      "tooMany": "Too many requests; try again later.",
+      "duplicate": "You've already asked to join this plan; wait for a reply.",
+      "closed": "This plan is no longer open.",
+      "disabled": "This page isn't available.",
+      "captcha": "Verification failed; refresh and try again."
+    }
   }
 }

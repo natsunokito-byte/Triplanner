@@ -34,3 +34,8 @@ export const ptVars = (t: PlanType) => ({
 
 export const VISIBILITIES = ["normal", "participants_only", "owner_only"] as const;
 export type Visibility = (typeof VISIBILITIES)[number];
+
+/** A plan can be opened for public claiming only if it is an invite-able type and visible to everyone. */
+export function canOpenClaim(type: string, visibility: string): boolean {
+  return (REQUEST_TYPES as readonly string[]).includes(type) && visibility === "normal";
+}

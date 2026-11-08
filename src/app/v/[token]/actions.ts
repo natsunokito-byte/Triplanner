@@ -4,10 +4,9 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendOtpEmail } from "@/lib/mail";
-import { TRIP_AVAIL_COLS, createRequest, parseRequestForm, type AvailTrip } from "@/lib/request-core";
 import {
   OTP_MAX_ATTEMPTS, OTP_MAX_PER_HOUR, OTP_TTL_MS, SESSION_TTL_MS,
-  checkCode, cookieName, generateCode, hashCode, normalizeEmail, signSession, verifySession,
+  checkCode, cookieName, generateCode, hashCode, normalizeEmail, signSession,
 } from "@/lib/viewer-session";
 
 export type VerifyState = { step: "email" | "code"; email?: string; error?: "invalid" | "tooMany" | "config" | "wrongCode" | "locked" };
@@ -86,21 +85,4 @@ export async function verifyOtp(token: string, _prev: VerifyState, fd: FormData)
 export async function signOutViewer(token: string) {
   (await cookies()).delete({ name: cookieName(token), path: `/v/${token}` });
   redirect(`/v/${token}`);
-}
-
-export type RequestState = { done?: boolean; error?: "invalid" | "blocked" | "tooMany" | "pendingLimit" | "slotTaken" | "disabled" | "session" };
-
-/** Request from an already-verified (listed) viewer — their email comes from the signed session, never from the form. */
-export async function submitViewerRequest(token: string, _prev: RequestState, fd: FormData): Promise<RequestState> {
-  const sec = secret();
-  const admin = createAdminClient();
-  if (!sec || !admin) return { error: "disabled" };
-  const { data: trip } = await admin.from("trips").select(TRIP_AVAIL_COLS + ",share_token").eq("share_token", token).eq("share_enabled", true).maybeSingle();
-  if (!trip) return { error: "disabled" };
-  const session = verifySession(sec, (await cookies()).get(cookieName(token))?.value, (trip as unknown as AvailTrip).id);
-  if (!session) return { error: "session" };
-  const { data: person } = await admin.from("people").select("id,name").eq("trip_id", (trip as unknown as AvailTrip).id).ilike("email", session.e).maybeSingle();
-  if (!person) return { error: "session" };
-  const r = await createRequest(admin, trip as unknown as AvailTrip, session.e, parseRequestForm(fd, person.name));
-  return r.ok ? { done: true } : { error: r.error };
 }

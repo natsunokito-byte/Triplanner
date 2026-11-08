@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useOptimistic, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import type { LucideIcon } from "lucide-react";
-import { AlertTriangle, Building2, Camera, Check, Copy, EyeOff, Users, MapPin, Plus } from "lucide-react";
+import { AlertTriangle, Building2, Camera, Check, Copy, EyeOff, Hand, Users, MapPin, Plus } from "lucide-react";
 import { WakeUpButton } from "./wake-up-button";
 import { duplicatePlanToSameDay, movePlanToDay, setPlanCompleted } from "@/app/actions";
 import { METHOD_ICON, type Method, type Payment } from "@/lib/commute";
@@ -19,6 +19,7 @@ export type BoardPlan = {
   title: string;
   location_name: string | null;
   has_meeting?: boolean;
+  open_claim?: boolean;
   photographer_name?: string | null;
   studio_name?: string | null;
   start_at: string | null; // null = date known, time TBD (plan_date)
@@ -136,6 +137,9 @@ export function DayBoard({
                         <div className={`mt-0.5 font-semibold leading-snug ${p.completed ? "line-through" : ""}`}>{p.title}</div>
                         <div className="mt-0.5 flex flex-wrap items-center gap-1">
                           <span className="inline-block rounded-full px-2 text-[11px]" style={{ background: c.bg, color: c.fg }}>{t(`types.${p.type}`)}</span>
+                          {p.open_claim && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-primary px-2 text-[11px] font-medium text-primary"><Hand size={11} />{t("openClaimPill")}</span>
+                          )}
                           {p.has_meeting && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-warning px-2 text-[11px] font-semibold text-white"><Users size={11} />{t("meetingPill")}</span>
                           )}

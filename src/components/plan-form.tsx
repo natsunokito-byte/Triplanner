@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { UsdHint } from "./fx";
-import { PLAN_ICON, SELECTABLE_TYPES, TASK_TODO_TYPES, VISIBILITIES, ptVars, type PlanType, type Visibility } from "@/lib/plan-types";
+import { PLAN_ICON, SELECTABLE_TYPES, canOpenClaim, TASK_TODO_TYPES, VISIBILITIES, ptVars, type PlanType, type Visibility } from "@/lib/plan-types";
 import { formatHours, hoursToMinutes, planTotal } from "@/lib/cost";
 import { Plus, X } from "lucide-react";
 import type { Person, Plan } from "@/lib/types";
@@ -46,6 +46,7 @@ export function PlanForm({
   const router = useRouter();
   const [type, setType] = useState<PlanType>(plan?.type ?? defaults.type);
   const [visibility, setVisibility] = useState<Visibility>(plan?.visibility ?? "normal");
+  const [openClaim, setOpenClaim] = useState(plan?.open_claim ?? false);
   const [hours, setHours] = useState(formatHours(plan?.duration_min ?? 60));
   const [cur, setCur] = useState(plan?.cost_currency ?? currency);
   // Existing plans from before itemised costs: show the old single amount as one item.
@@ -209,6 +210,22 @@ export function PlanForm({
         </select>
         <p className="mt-1 text-xs text-muted">{t(`visHint.${visibility}`)}</p>
       </div>
+
+      {canOpenClaim(type, visibility) && (
+        <fieldset className="space-y-2 rounded-[8px] border border-border px-3 py-3">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" name="open_claim" checked={openClaim} onChange={(e) => setOpenClaim(e.target.checked)} />
+            <span className="font-medium">{t("openClaim")}</span>
+          </label>
+          <p className="text-xs text-muted">{t("openClaimHint")}</p>
+          {openClaim && (
+            <div>
+              <label className="label" htmlFor="claim_proposal">{t("claimProposal")}</label>
+              <textarea id="claim_proposal" name="claim_proposal" rows={2} maxLength={500} className="input h-auto py-2" placeholder={t("claimProposalPh")} defaultValue={plan?.claim_proposal ?? ""} />
+            </div>
+          )}
+        </fieldset>
+      )}
 
       <fieldset hidden={isWake} disabled={ownerOnly} className={ownerOnly ? "opacity-50" : ""}>
         <legend className="label">{t("people")}</legend>

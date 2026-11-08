@@ -27,7 +27,7 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
   if (!data) notFound();
   const trip = data as Trip;
   await touchTrip(id);
-  const { count: pendingCount } = await supabase.from("plan_requests").select("id", { count: "exact", head: true }).eq("trip_id", id).eq("status", "pending");
+  const { count: pendingCount } = await supabase.from("plan_claims").select("id", { count: "exact", head: true }).eq("trip_id", id).eq("status", "pending");
   const tr = await getTranslations("requests");
   const { data: hotelRows } = await supabase.from("hotels").select("*").eq("trip_id", id).order("check_in");
   const hotels = (hotelRows ?? []) as Hotel[];
@@ -49,7 +49,7 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
   const nameOf = new Map((peopleRows ?? []).map((p) => [p.id as string, p.name as string]));
   const boardPlans: BoardPlan[] = ((planRows ?? []) as Plan[]).filter((p) => !isUnscheduled(p)).map((p) => ({
     id: p.id, type: p.type, title: p.title, location_name: p.location_name, start_at: p.start_at, plan_date: p.plan_date,
-    photographer_name: p.photographer_name, studio_name: p.studio_name, has_meeting: p.has_meeting,
+    photographer_name: p.photographer_name, studio_name: p.studio_name, has_meeting: p.has_meeting, open_claim: p.open_claim,
     duration_min: p.duration_min, visibility: p.visibility, completed: p.completed,
     cost: p.cost == null ? null : Number(p.cost), cost_currency: p.cost_currency, usd_frozen: p.usd_per_unit_at_completion == null ? null : Number(p.usd_per_unit_at_completion),
     people: (ppRows ?? []).filter((r) => r.plan_id === p.id && nameOf.has(r.person_id)).map((r) => ({ id: r.person_id as string, name: nameOf.get(r.person_id)! })),

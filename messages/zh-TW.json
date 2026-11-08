@@ -65,16 +65,16 @@
     "seeCosts": "全覽者可看到金額",
     "hint": "受邀者需通過 email 驗證，且只能看到自己參與的行程。",
     "avail": {
-      "title": "找我約",
-      "enabled": "開啟「找我約」",
+      "title": "開放認領頁面",
+      "enabled": "開啟開放認領頁面（有連結的人都能看到你開放的行程並申請）",
       "public": "公開空檔連結（不需驗證即可看空檔，送出請求時才驗證 email）",
-      "link": "空檔連結",
-      "regenerate": "重新產生空檔連結",
+      "link": "開放認領連結",
+      "regenerate": "重新產生連結",
       "dayStart": "可約開始",
       "dayEnd": "可約結束",
       "buffer": "前後緩衝（分鐘）",
       "notice": "最少提前（小時）",
-      "hint": "只會顯示「有空」的時段，不會透露行程內容、地點或人名。連結外流就等於公開你的空檔，請定期更換。",
+      "hint": "只會顯示你勾選「開放認領」的行程，且只有標題、類型、日期時間、地點與提案；費用、備註、其他行程都不會公開。連結外流就等於公開這些行程，請定期更換。",
       "blocks": "手動不可約時段",
       "blockStart": "開始",
       "blockEnd": "結束",
@@ -83,7 +83,7 @@
       "blockedEmails": "已封鎖的 email",
       "unblock": "解除",
       "noBlocks": "沒有手動時段。",
-      "publicOff": "尚未公開：請先勾選上面的公開選項。"
+      "publicOff": "尚未開啟：請先勾選上面的選項並儲存。"
     }
   },
   "people": {
@@ -255,7 +255,12 @@
     "hasMeeting": "這段時間有會議",
     "meetingPill": "有會議",
     "wakeUp": "起床時間",
-    "wakeClear": "清除"
+    "wakeClear": "清除",
+    "openClaim": "開放認領",
+    "openClaimHint": "勾選後，這個行程會出現在公開的「開放認領」頁面，有連結的人都可以申請加入，由你決定是否接受。",
+    "claimProposal": "提案（選填）",
+    "claimProposalPh": "例如：想一起去吃拉麵，之後逛逛書店",
+    "openClaimPill": "開放認領"
   },
   "commute": {
     "methods": {
@@ -475,16 +480,16 @@
     "tab": "找我約"
   },
   "requests": {
-    "title": "邀約請求",
+    "title": "認領請求",
     "back": "返回",
     "pending": "待處理",
-    "none": "目前沒有待處理的請求。",
+    "none": "目前沒有待處理的認領。",
     "history": "歷史紀錄",
     "tzNote": "時間為旅行當地時間（{tz}）。",
     "newPerson": "新朋友",
     "replyPh": "回覆訊息（選填，會寄給對方）",
-    "block": "封鎖此 email（之後不能再送請求）",
-    "accept": "接受並建立行程",
+    "block": "封鎖此 email（之後不能再申請）",
+    "accept": "接受並加入行程",
     "decline": "婉拒",
     "err": {
       "conflict": "這個時段現在已經有安排了，無法接受。",
@@ -498,7 +503,8 @@
       "cancelled": "已取消",
       "pending": "待處理"
     },
-    "badge": "邀約請求"
+    "badge": "認領請求",
+    "claimed": "想認領：{plan}"
   },
   "todos": {
     "title": "待辦事項",
@@ -530,5 +536,30 @@
     "byDate": "日期",
     "byCategory": "分類",
     "addTask": "新增任務待辦"
+  },
+  "claim": {
+    "title": "{trip}：開放認領",
+    "subtitle": "這些行程開放給你加入。選一個，留下名字和 email，等對方確認後會寄信給你。",
+    "tzNote": "時間為旅行當地時間（{tz}）。",
+    "none": "目前沒有開放認領的行程。",
+    "timeTbd": "時間未定",
+    "dateTbd": "日期未定",
+    "claim": "我想參加",
+    "name": "你的名字",
+    "email": "你的 email",
+    "message": "想說的話（選填）",
+    "submit": "送出",
+    "cancel": "取消",
+    "sent": "已送出！對方確認後會寄信通知你。",
+    "privacy": "你的名字和 email 只會給行程的主人看到。",
+    "err": {
+      "invalid": "資料不完整，請檢查名字和 email。",
+      "blocked": "目前無法送出。",
+      "tooMany": "送出太頻繁了，請稍後再試。",
+      "duplicate": "你已經申請過這個行程了，請等對方回覆。",
+      "closed": "這個行程已經不開放了。",
+      "disabled": "此頁面目前未開放。",
+      "captcha": "人機驗證失敗，請重新整理後再試。"
+    }
   }
 }

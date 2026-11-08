@@ -88,6 +88,8 @@ create table plans (
   character_name text,
   photographer_name text,                              -- cosplay_photoshoot only
   photographer_fee numeric(12,2),                      -- cosplay_photoshoot only (plan currency)
+  open_claim boolean not null default false,           -- open for anyone with the claim-page link to ask to join
+  claim_proposal text,                                  -- optional idea shown on the claim page
   has_meeting boolean not null default false,          -- work plans: meetings during this block (highlighted pill)
   plan_date date,                                      -- date known, time not decided (start_at null)
   plan_time time,                                      -- time known, date not decided (start_at null)
@@ -212,7 +214,23 @@ create table availability_blocks (
   check (end_at > start_at)
 );
 
--- Requests from verified viewers to hang out. Accepting creates a plan (plans.id stored in plan_id).
+-- Public claims on open plans (M18). Written only by server code (service role); owner reads/decides under RLS.
+create table plan_claims (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references trips(id) on delete cascade,
+  plan_id uuid not null references plans(id) on delete cascade,
+  claimer_name text not null,
+  claimer_email text not null,
+  message text,
+  status text not null default 'pending' check (status in ('pending','accepted','declined','expired')),
+  owner_reply text,
+  created_at timestamptz default now(),
+  decided_at timestamptz
+);
+create index on plan_claims (trip_id, status, created_at);
+create index on plan_claims (plan_id, status);
+
+-- (legacy, unused since M18) Requests from verified viewers to hang out. Accepting creates a plan (plans.id stored in plan_id).
 create table plan_requests (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references trips(id) on delete cascade,
@@ -257,7 +275,7 @@ create table fx_rates (
 do $$
 declare t text;
 begin
-  foreach t in array array['trips','people','hotels','plans','plan_people','plan_photos','commutes','todos','todo_categories','plan_cost_items','commute_stops','viewer_sessions','viewer_otps','fx_rates','availability_blocks','plan_requests']
+  foreach t in array array['trips','people','hotels','plans','plan_people','plan_photos','commutes','todos','todo_categories','plan_cost_items','commute_stops','viewer_sessions','viewer_otps','fx_rates','availability_blocks','plan_requests','plan_claims']
   loop
     execute format('alter table %I enable row level security', t);
   end loop;
@@ -280,6 +298,7 @@ create policy viewer_sessions_owner on viewer_sessions for select using (exists 
 create policy fx_rates_read on fx_rates for select using (auth.role() = 'authenticated');
 -- viewer_otps: no policies => only service role can touch it.
 create policy availability_blocks_owner on availability_blocks for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
+create policy plan_claims_owner on plan_claims for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
 create policy plan_requests_owner on plan_requests for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
 -- Viewers create/read their own requests only through server routes (service role).
 

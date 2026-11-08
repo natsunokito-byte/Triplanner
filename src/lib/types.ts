@@ -68,6 +68,8 @@ export type Plan = {
   start_at: string | null; // null = date and/or time not decided
   plan_date: string | null; // date known, no time
   has_meeting: boolean;
+  open_claim: boolean;
+  claim_proposal: string | null;
   plan_time: string | null; // time known, no date ('HH:MM:SS')
   studio_name: string | null;
   duration_min: number;
