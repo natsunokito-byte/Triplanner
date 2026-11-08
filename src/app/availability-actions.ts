@@ -40,7 +40,7 @@ export async function unblockEmail(id: string, email: string) {
 
 export type DecideState = { error?: "failed" | "notPending" };
 
-/** Accept (adds the claimer to the plan and closes it) or decline. Emails the claimer either way. */
+/** Accept (adds the claimer to the plan; the plan stays open) or decline. Emails the claimer either way. */
 export async function decideClaim(tripId: string, claimId: string, _prev: DecideState, fd: FormData): Promise<DecideState> {
   const { supabase } = await requireUser();
   const decision = fd.get("decision") === "accept" ? "accept" : "decline";
@@ -65,7 +65,6 @@ export async function decideClaim(tripId: string, claimId: string, _prev: Decide
     : "";
 
   if (decision === "accept") {
-    if (!plan.open_claim) return { error: "notPending" }; // someone else already got it
     let personId: string | null = null;
     // Reuse a person already on the trip (by email when we have one, otherwise by exact name).
     const email = (claim.claimer_email as string) || null;
@@ -83,16 +82,6 @@ export async function decideClaim(tripId: string, claimId: string, _prev: Decide
     if (!linked) {
       const { error } = await supabase.from("plan_people").insert({ plan_id: plan.id, person_id: personId });
       if (error) return { error: "failed" };
-    }
-    // The plan is taken: close it and tell the other pending claimers.
-    await supabase.from("plans").update({ open_claim: false }).eq("id", plan.id);
-    const { data: others } = await supabase.from("plan_claims").select("id,claimer_email").eq("plan_id", plan.id).eq("status", "pending").neq("id", claimId);
-    if ((others ?? []).length) {
-      await supabase.from("plan_claims").update({ status: "declined", decided_at: now }).in("id", (others ?? []).map((o) => o.id as string));
-      for (const o of (others ?? []).filter((x) => x.claimer_email)) {
-        await sendMail(o.claimer_email as string, zh ? `關於「${plan.title}」：${trip.title}` : `About "${plan.title}": ${trip.title}`,
-          zh ? "這個行程已經有人認養了，謝謝你的興趣。" : "Someone else already joined this plan. Thanks for your interest.");
-      }
     }
   }
 

@@ -4,6 +4,8 @@ import { Check, Circle, CircleCheck, Copy, Trash2 } from "lucide-react";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { InvitePanel } from "@/components/invite-panel";
 import { PlanReportExport } from "@/components/plan-report-export";
+import { PlanClaimRow } from "@/components/plan-claim-row";
+import { decideClaim } from "@/app/availability-actions";
 import { PlanForm } from "@/components/plan-form";
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
@@ -22,7 +24,7 @@ export async function EditPlanContent({ id, planId, back, intercepted }: { id: s
   const te = await getTranslations("export");
   const locale = await getLocale();
   const supabase = await createClient();
-  const [{ data: tripRow }, { data: planRow }, { data: peopleRows }, { data: ppRows }, { data: todoRows }, { data: photoRows }, { data: itemRows }, { data: catRows }] = await Promise.all([
+  const [{ data: tripRow }, { data: planRow }, { data: peopleRows }, { data: ppRows }, { data: todoRows }, { data: photoRows }, { data: itemRows }, { data: catRows }, { data: claimRows }] = await Promise.all([
     supabase.from("trips").select("*").eq("id", id).maybeSingle(),
     supabase.from("plans").select("*").eq("id", planId).eq("trip_id", id).maybeSingle(),
     supabase.from("people").select("*").eq("trip_id", id).order("is_me", { ascending: false }).order("name"),
@@ -31,6 +33,7 @@ export async function EditPlanContent({ id, planId, back, intercepted }: { id: s
     supabase.from("plan_photos").select("id,storage_path").eq("plan_id", planId).order("created_at"),
     supabase.from("plan_cost_items").select("label,amount,per_hour").eq("plan_id", planId).order("position"),
     supabase.from("todo_categories").select("id,name").eq("trip_id", id).order("position"),
+    supabase.from("plan_claims").select("id,claimer_name,message").eq("plan_id", planId).eq("status", "pending").order("created_at"),
   ]);
   if (!tripRow || !planRow) notFound();
   const trip = tripRow as Trip;
@@ -67,6 +70,15 @@ export async function EditPlanContent({ id, planId, back, intercepted }: { id: s
             </form>
           </div>
         </div>
+
+        {(claimRows ?? []).length > 0 && (
+          <section className="card space-y-3 p-5">
+            <h2 className="font-semibold">{t("claimsTitle")} ({(claimRows ?? []).length})</h2>
+            {(claimRows ?? []).map((r) => (
+              <PlanClaimRow key={r.id as string} action={decideClaim.bind(null, id, r.id as string)} name={r.claimer_name as string} message={(r.message as string | null) || null} />
+            ))}
+          </section>
+        )}
 
         <div>
           <PlanForm

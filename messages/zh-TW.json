@@ -260,7 +260,11 @@
     "openClaimHint": "勾選後，這個行程會出現在公開的「開放認養」頁面，有連結的人都可以申請加入，由你決定是否接受。",
     "claimProposal": "提案（選填）",
     "claimProposalPh": "例如：想一起去吃拉麵，之後逛逛書店",
-    "openClaimPill": "開放認養"
+    "openClaimPill": "開放認養",
+    "claimsTitle": "認養請求",
+    "addClaimer": "將 {name} 加入行程",
+    "removeClaim": "刪除",
+    "claimErr": "處理失敗，請再試一次。"
   },
   "commute": {
     "methods": {

@@ -260,7 +260,11 @@
     "openClaimHint": "When on, this plan appears on the public claim page. Anyone with the link can ask to join and you decide whether to accept.",
     "claimProposal": "Proposal (optional)",
     "claimProposalPh": "e.g. Ramen first, then browse a bookstore",
-    "openClaimPill": "Open"
+    "openClaimPill": "Open",
+    "claimsTitle": "Join requests",
+    "addClaimer": "Add {name} to plan",
+    "removeClaim": "Delete",
+    "claimErr": "Something went wrong. Try again."
   },
   "commute": {
     "methods": {
