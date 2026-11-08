@@ -592,7 +592,9 @@
     "completedPlans": "已完成的購物行程",
     "noDateShort": "未排日期",
     "removeItem": "移除",
-    "goPlan": "前往行程"
+    "goPlan": "前往行程",
+    "addNote": "新增備註",
+    "clearNote": "清除備註"
   },
   "claim": {
     "title": "{trip}：行程認養",

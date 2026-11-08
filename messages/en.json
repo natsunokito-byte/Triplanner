@@ -592,7 +592,9 @@
     "completedPlans": "Completed shopping plans",
     "noDateShort": "No date",
     "removeItem": "Remove",
-    "goPlan": "Open plan"
+    "goPlan": "Open plan",
+    "addNote": "Add note",
+    "clearNote": "Clear note"
   },
   "claim": {
     "title": "{trip}: plan claims",
