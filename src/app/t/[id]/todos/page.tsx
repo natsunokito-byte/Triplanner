@@ -78,6 +78,7 @@ export default async function TodosPage({
     const src = srcHref(x);
     return (
       <li key={x.id} className="flex min-h-10 flex-wrap items-center gap-2">
+        {src && <Link href={src} className="text-muted hover:text-text" aria-label={t("open")}><ExternalLink size={14} /></Link>}
         <form action={toggleTodoItem.bind(null, id, x.id, !x.done)} className="flex items-center">
           <button className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2" aria-label={x.done ? t("reopen") : t("complete")}>
             {x.done ? <Check size={18} className="text-success" /> : <Circle size={18} className="text-muted" />}
@@ -89,7 +90,6 @@ export default async function TodosPage({
         </span>
         <TodoDuePicker action={setTodoDue.bind(null, id, x.id)} value={x.due_date} />
         {hasCats && <TodoCategorySelect action={moveTodoItem.bind(null, id, x.id)} value={catKeyOf(x) === "u" ? "b:none" : catKeyOf(x)} cats={cats} />}
-        {src && <Link href={src} className="text-muted hover:text-text" aria-label={t("open")}><ExternalLink size={14} /></Link>}
         {!x.auto_generated && (
           <form action={deleteTodoItem.bind(null, id, x.id)} className="flex items-center">
             <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={c("delete")}><Trash2 size={14} /></button>

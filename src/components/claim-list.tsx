@@ -29,11 +29,11 @@ export function ClaimList({ token, items }: { token: string; items: ClaimItem[] 
       {shown.length === 0 && <p className="card p-6 text-center text-muted">{t("none")}</p>}
       {shown.map((p) => (
         <section key={p.id} className="card space-y-2 p-4">
+          <div className="flex items-center gap-1 text-sm font-medium text-primary"><CalendarClock size={14} /> {p.when}{p.duration ? ` · ${p.duration}` : ""}</div>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-lg font-semibold">{p.title}</h2>
             <span className="rounded-full bg-surface-2 px-2 text-xs">{p.typeLabel}</span>
           </div>
-          <div className="flex items-center gap-1 text-sm text-muted"><CalendarClock size={14} /> {p.when}{p.duration ? ` · ${p.duration}` : ""}</div>
           {p.location && <div className="flex items-center gap-1 text-sm text-muted"><MapPin size={14} /> {p.location}</div>}
           {p.proposal && <p className="whitespace-pre-line rounded-md bg-surface-2 p-2 text-sm">{p.proposal}</p>}
           <ClaimForm action={submitClaim.bind(null, token, p.id)} />

@@ -574,6 +574,7 @@
       "captcha": "Verification failed; refresh and try again."
     },
     "all": "All",
-    "filter": "Category"
+    "filter": "Category",
+    "minutes": "{n} min"
   }
 }

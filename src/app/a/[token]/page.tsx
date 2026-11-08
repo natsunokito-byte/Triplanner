@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { AppHeader } from "@/components/app-header";
 import { ClaimList } from "@/components/claim-list";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -17,6 +17,7 @@ type OpenPlan = {
 /** Public "open claim" page. Exposes ONLY the plans the owner opened, and only title/type/when/where/proposal. */
 export default async function ClaimPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  const locale = await getLocale();
   const t = await getTranslations("claim");
   const tp = await getTranslations("plan");
   const tv = await getTranslations("viewer");
@@ -35,8 +36,8 @@ export default async function ClaimPage({ params }: { params: Promise<{ token: s
     .filter((p) => !p.start_at || Date.parse(p.start_at) + p.duration_min * 60000 > now)
     .sort((a, b) => (a.start_at ? Date.parse(a.start_at) : Infinity) - (b.start_at ? Date.parse(b.start_at) : Infinity));
 
-  const full = new Intl.DateTimeFormat(undefined, { dateStyle: "full", timeStyle: "short", timeZone: trip.timezone });
-  const dateOnly = new Intl.DateTimeFormat(undefined, { dateStyle: "full", timeZone: trip.timezone });
+  const full = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: trip.timezone });
+  const dateOnly = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeZone: "UTC" });
   const when = (p: OpenPlan) =>
     p.start_at ? full.format(new Date(p.start_at))
     : p.plan_date ? `${dateOnly.format(new Date(`${p.plan_date}T12:00:00Z`))} · ${t("timeTbd")}`
@@ -55,7 +56,7 @@ export default async function ClaimPage({ params }: { params: Promise<{ token: s
           token={token}
           items={plans.map((p) => ({
             id: p.id, title: p.title, type: p.type, typeLabel: tp(`types.${p.type}`), when: when(p),
-            duration: p.start_at ? `${p.duration_min} min` : "", location: p.location_name, proposal: p.claim_proposal,
+            duration: p.start_at ? t("minutes", { n: p.duration_min }) : "", location: p.location_name, proposal: p.claim_proposal,
           }))}
         />
       </main>

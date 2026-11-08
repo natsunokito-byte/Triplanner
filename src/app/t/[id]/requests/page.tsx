@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowLeft, CalendarClock, MapPin } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { ClaimRow } from "@/components/claim-row";
@@ -16,6 +16,7 @@ type OpenPlan = {
 
 export default async function Requests({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const locale = await getLocale();
   const t = await getTranslations("requests");
   const tp = await getTranslations("plan");
   const tc = await getTranslations("claim");
@@ -36,7 +37,7 @@ export default async function Requests({ params }: { params: Promise<{ id: strin
   const open = plans.filter((p) => p.open_claim).sort((a, b) => (a.start_at ? Date.parse(a.start_at) : Infinity) - (b.start_at ? Date.parse(b.start_at) : Infinity));
   const knownEmails = new Set((people ?? []).map((p) => (p.email ?? "").toLowerCase()).filter(Boolean));
   const knownNames = new Set((people ?? []).map((p) => (p.name ?? "").toLowerCase()));
-  const fmt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short", timeZone: trip.timezone });
+  const fmt = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: trip.timezone });
   const pending = (reqs ?? []).filter((r) => r.status === "pending");
   const past = (reqs ?? []).filter((r) => r.status !== "pending");
   const pendingByPlan = new Map<string, number>();
