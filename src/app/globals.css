@@ -17,6 +17,7 @@
   --pt-date-bg:#fce7f3; --pt-date-fg:#9d174d; --pt-date:#ec4899;
   --pt-hangout-bg:#ede9fe; --pt-hangout-fg:#5b21b6; --pt-hangout:#8b5cf6;
   --pt-event-bg:#ccfbf1; --pt-event-fg:#115e59; --pt-event:#14b8a6;
+  --pt-task-bg:#e5e7eb; --pt-task-fg:#374151; --pt-task:#6b7280;
 }
 @media (prefers-color-scheme: dark) {
   :root {

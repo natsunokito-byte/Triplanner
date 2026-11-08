@@ -139,7 +139,8 @@
       "cosplay_photoshoot": "Cosplay 拍攝",
       "date": "約會",
       "hangout": "聚會",
-      "event": "活動"
+      "event": "活動",
+      "task": "任務"
     },
     "add": "新增行程",
     "newTitle": "新增行程",
@@ -154,8 +155,8 @@
     "people": "參與者",
     "noPeople": "還沒有參與者，到旅行設定新增。",
     "start": "開始時間",
-    "duration": "時長（分鐘）",
-    "durationHint": "最短 30 分鐘",
+    "duration": "時長（小時）",
+    "durationHint": "最短 0.5 小時",
     "cost": "費用",
     "currency": "幣別",
     "fx": "匯率",
@@ -203,7 +204,27 @@
     "noPhotos": "還沒有照片。",
     "swipeHint": "左右滑動切換日期；用卡片下方選單換日。",
     "moveTo": "移到",
-    "saveFailed": "儲存失敗，請重試。"
+    "saveFailed": "儲存失敗，請重試。",
+    "itemDefault": "費用",
+    "itemLabel": "品項",
+    "itemLabelPh": "品項，例如：門票、租借",
+    "itemAmount": "金額",
+    "removeItem": "移除",
+    "addCostItem": "新增費用品項",
+    "perHour": "每小時計費（× {h} 小時）",
+    "total": "總計",
+    "totalIncludes": "= 攝影師費用 + 攝影棚費用 + 其他品項",
+    "photographer": "攝影師",
+    "photographerFee": "攝影師費用",
+    "studioFee": "攝影棚費用",
+    "planTodos": "待辦事項",
+    "planTodoPh": "例如：預約、買票、準備道具",
+    "todoCategory": "待辦分類",
+    "catPlan": "行程",
+    "catGeneral": "一般",
+    "addPlanTodo": "新增待辦",
+    "copy": "複製行程",
+    "copySuffix": "（複製）"
   },
   "commute": {
     "methods": {
@@ -305,7 +326,8 @@
     "table": "表格檢視",
     "colName": "名稱",
     "colValue": "數值",
-    "back": "返回旅行"
+    "back": "返回旅行",
+    "openTodoPage": "開啟待辦頁 →"
   },
   "viewer": {
     "title": "旅行行程",
@@ -434,5 +456,29 @@
       "pending": "待處理"
     },
     "badge": "邀約請求"
+  },
+  "todos": {
+    "title": "待辦事項",
+    "open": "未完成",
+    "done": "已完成",
+    "all": "全部",
+    "emptyOpen": "沒有未完成的待辦，太棒了！",
+    "emptyDone": "還沒有已完成的待辦。",
+    "reopen": "改回未完成",
+    "complete": "標記完成",
+    "due": "到期 {d}",
+    "move": "移動",
+    "add": "新增待辦",
+    "titlePh": "例如：預約攝影棚、換日幣",
+    "category": "分類",
+    "dueLabel": "到期日（選填）",
+    "addBtn": "新增",
+    "categories": "自訂分類",
+    "categoriesHint": "建立自己的分類（例如：行李、預約、買禮物）來整理所有待辦；住宿、票券、行程等內建分類仍會保留。",
+    "categoryName": "分類名稱",
+    "categoryPh": "新分類名稱",
+    "addCategory": "新增分類",
+    "deleteCategoryConfirm": "刪除這個分類？裡面的待辦不會被刪除，會回到原本的內建分類。",
+    "link": "待辦事項"
   }
 }

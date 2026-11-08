@@ -130,3 +130,22 @@ test("canSeePlan truth table", () => {
   ];
   for (const [vis, parts, viewer, mode, want] of cases) assert.equal(canSeePlan(vis, parts, viewer, mode), want, `${vis} ${parts} ${viewer.role} ${mode}`);
 });
+
+test("M13: photographer/studio fees and cost items never reach viewers", async () => {
+  const { shapeForViewer } = await import("../src/lib/viewer-access");
+  const raw = {
+    trip: { title: "T", start_date: "2026-11-07", end_date: "2026-11-09", timezone: "Asia/Tokyo", currency: "JPY", destinations: [], viewers_see_costs: true, usd_rate_override: null },
+    plans: [{
+      id: "p1", type: "cosplay_photoshoot", title: "Shoot", location_name: null, location_address: null, start_at: "2026-11-07T01:00:00Z",
+      duration_min: 120, cost: 7000, cost_currency: null, usd_per_unit_at_completion: null, link: null, note: null, character_name: "X",
+      visibility: "normal", completed: false, photographer_name: "SECRET-PHOTOG", photographer_fee: 5000, studio_fee: 2000,
+    }],
+    planPeople: [{ plan_id: "p1", person_id: "a" }],
+    people: [{ id: "a", name: "A", color: null, is_me: false }],
+    hotels: [], commutes: [], photos: [],
+  };
+  const out = shapeForViewer(raw as never, { personId: "a", role: "full" }, "all");
+  const json = JSON.stringify(out);
+  assert.ok(!json.includes("SECRET-PHOTOG"));
+  assert.ok(!json.includes("photographer_fee") && !json.includes("studio_fee"));
+});

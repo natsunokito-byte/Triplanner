@@ -5,7 +5,12 @@ import { useTranslations } from "next-intl";
 import { SubmitButton } from "./submit-button";
 import { UsdHint } from "./fx";
 import { PLAN_ICON, PLAN_TYPES, VISIBILITIES, ptVars, type PlanType, type Visibility } from "@/lib/plan-types";
+import { formatHours, hoursToMinutes, planTotal } from "@/lib/cost";
+import { Plus, X } from "lucide-react";
 import type { Person, Plan } from "@/lib/types";
+
+type Item = { label: string; amount: string; per_hour: boolean };
+type TodoLine = { title: string; cat: string };
 
 export function PlanForm({
   action,
@@ -16,6 +21,8 @@ export function PlanForm({
   tz,
   currency,
   submitLabel,
+  costItems = [],
+  categories = [],
 }: {
   action: (fd: FormData) => Promise<void>;
   plan?: Plan;
@@ -25,17 +32,44 @@ export function PlanForm({
   tz: string;
   currency: string;
   submitLabel: string;
+  costItems?: { label: string; amount: number; per_hour: boolean }[];
+  categories?: { id: string; name: string }[];
 }) {
   const t = useTranslations("plan");
   const [type, setType] = useState<PlanType>(plan?.type ?? defaults.type);
   const [visibility, setVisibility] = useState<Visibility>(plan?.visibility ?? "normal");
-  const [duration, setDuration] = useState(plan?.duration_min ?? 60);
+  const [hours, setHours] = useState(formatHours(plan?.duration_min ?? 60));
   const [cur, setCur] = useState(plan?.cost_currency ?? currency);
-  const [costAmt, setCostAmt] = useState(plan?.cost != null ? String(plan.cost) : "");
+  // Existing plans from before itemised costs: show the old single amount as one item.
+  const [items, setItems] = useState<Item[]>(
+    costItems.length
+      ? costItems.map((i) => ({ label: i.label, amount: String(i.amount), per_hour: i.per_hour }))
+      : plan?.cost != null && plan.photographer_fee == null && plan.studio_fee == null
+        ? [{ label: t("itemDefault"), amount: String(plan.cost), per_hour: false }]
+        : [],
+  );
+  const [pFee, setPFee] = useState(plan?.photographer_fee != null ? String(plan.photographer_fee) : "");
+  const [sFee, setSFee] = useState(plan?.studio_fee != null ? String(plan.studio_fee) : "");
+  const [todoLines, setTodoLines] = useState<TodoLine[]>([]);
   const [selected, setSelected] = useState<string[]>(planPeople);
 
   const ownerOnly = visibility === "owner_only";
-  const badDuration = !Number.isFinite(duration) || duration < 30;
+  const duration = hoursToMinutes(Number(hours));
+  const badDuration = hours.trim() === "" || !Number.isFinite(duration) || Number(hours) < 0.5 || Number(hours) > 48;
+  const isCosplay = type === "cosplay_photoshoot";
+  const num = (v: string) => (v.trim() === "" || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : Number(v));
+  const cleanItems = items
+    .filter((i) => num(i.amount) != null)
+    .map((i) => ({ label: i.label.trim() || t("itemDefault"), amount: num(i.amount)!, per_hour: i.per_hour }));
+  const total = planTotal({
+    items: cleanItems,
+    durationMin: Number.isFinite(duration) ? duration : 60,
+    photographerFee: isCosplay ? num(pFee) : null,
+    studioFee: isCosplay ? num(sFee) : null,
+  });
+  const patchItem = (i: number, patch: Partial<Item>) => setItems(items.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+  const patchTodo = (i: number, patch: Partial<TodoLine>) => setTodoLines(todoLines.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+  const cleanTodos = todoLines.filter((x) => x.title.trim() !== "").map((x) => ({ title: x.title.trim(), cat: x.cat }));
 
   return (
     <form action={action} className="space-y-5">
@@ -69,10 +103,24 @@ export function PlanForm({
         <input id="title" name="title" className="input" required maxLength={160} placeholder={t("titlePh")} defaultValue={plan?.title} />
       </div>
 
-      {type === "cosplay_photoshoot" && (
-        <div>
-          <label className="label" htmlFor="character_name">{t("character")}</label>
-          <input id="character_name" name="character_name" className="input" maxLength={120} defaultValue={plan?.character_name ?? ""} />
+      {isCosplay && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <label className="label" htmlFor="character_name">{t("character")}</label>
+            <input id="character_name" name="character_name" className="input" maxLength={120} defaultValue={plan?.character_name ?? ""} />
+          </div>
+          <div className="col-span-2">
+            <label className="label" htmlFor="photographer_name">{t("photographer")}</label>
+            <input id="photographer_name" name="photographer_name" className="input" maxLength={120} defaultValue={plan?.photographer_name ?? ""} />
+          </div>
+          <div>
+            <label className="label" htmlFor="photographer_fee">{t("photographerFee")}</label>
+            <input id="photographer_fee" name="photographer_fee" type="number" min="0" step="0.01" className="input" value={pFee} onChange={(e) => setPFee(e.target.value)} />
+          </div>
+          <div>
+            <label className="label" htmlFor="studio_fee">{t("studioFee")}</label>
+            <input id="studio_fee" name="studio_fee" type="number" min="0" step="0.01" className="input" value={sFee} onChange={(e) => setSFee(e.target.value)} />
+          </div>
         </div>
       )}
 
@@ -93,15 +141,13 @@ export function PlanForm({
           <input id="start" name="start" type="datetime-local" className="input" required defaultValue={defaults.start} />
         </div>
         <div>
-          <label className="label" htmlFor="duration_min">{t("duration")}</label>
-          <input
-            id="duration_min" name="duration_min" type="number" min={30} max={2880} step={5} className="input" required
-            value={Number.isNaN(duration) ? "" : duration} onChange={(e) => setDuration(e.target.valueAsNumber)}
-          />
+          <label className="label" htmlFor="duration_h">{t("duration")}</label>
+          <input id="duration_h" type="number" min={0.5} max={48} step={0.5} className="input" required value={hours} onChange={(e) => setHours(e.target.value)} />
+          <input type="hidden" name="duration_min" value={Number.isFinite(duration) ? duration : ""} />
         </div>
         <div className="col-span-2 flex flex-wrap items-center gap-2">
-          {[30, 60, 90, 120, 180].map((m) => (
-            <button key={m} type="button" className={`chip ${duration === m ? "" : "!bg-surface-2 !text-muted"}`} onClick={() => setDuration(m)}>{m}</button>
+          {[0.5, 1, 1.5, 2, 3, 4].map((h) => (
+            <button key={h} type="button" className={`chip ${Number(hours) === h ? "" : "!bg-surface-2 !text-muted"}`} onClick={() => setHours(String(h))}>{h}</button>
           ))}
           <span className="text-xs text-muted">{t("durationHint")} · {t("tzNote", { tz })}</span>
         </div>
@@ -138,23 +184,58 @@ export function PlanForm({
         )}
       </fieldset>
 
-      <div className="grid grid-cols-3 gap-3">
-        <div className="col-span-2">
-          <label className="label" htmlFor="cost">{t("cost")}</label>
-          <input id="cost" name="cost" type="number" min="0" step="0.01" className="input" value={costAmt} onChange={(e) => setCostAmt(e.target.value)} />
+      <fieldset className="space-y-3">
+        <legend className="label">{t("cost")}</legend>
+        <input type="hidden" name="cost_items" value={JSON.stringify(cleanItems)} />
+        {items.map((it, i) => (
+          <div key={i} className="grid grid-cols-[1fr_7rem_auto] items-center gap-2">
+            <input className="input" maxLength={80} placeholder={t("itemLabelPh")} aria-label={t("itemLabel")} value={it.label} onChange={(e) => patchItem(i, { label: e.target.value })} />
+            <input className="input" type="number" min="0" step="0.01" placeholder="0" aria-label={t("itemAmount")} value={it.amount} onChange={(e) => patchItem(i, { amount: e.target.value })} />
+            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")} onClick={() => setItems(items.filter((_, k) => k !== i))}><X size={14} /></button>
+            <label className="col-span-3 -mt-1 flex items-center gap-2 text-xs text-muted">
+              <input type="checkbox" checked={it.per_hour} onChange={(e) => patchItem(i, { per_hour: e.target.checked })} />
+              {t("perHour", { h: Number.isFinite(duration) ? formatHours(duration) : "?" })}
+            </label>
+          </div>
+        ))}
+        <button type="button" className="btn btn-sm" onClick={() => setItems([...items, { label: "", amount: "", per_hour: false }])}><Plus size={14} /> {t("addCostItem")}</button>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2 rounded-[8px] bg-surface-2 px-3 py-2">
+            <div className="text-xs text-muted">{t("total")}</div>
+            <div className="text-base font-semibold tabular-nums">{total == null ? "—" : `${total.toLocaleString()} ${cur}`}</div>
+            {isCosplay && <div className="text-xs text-muted">{t("totalIncludes")}</div>}
+          </div>
+          <div>
+            <label className="label" htmlFor="cost_currency">{t("currency")}</label>
+            <input id="cost_currency" name="cost_currency" className="input uppercase" maxLength={3} value={cur} onChange={(e) => setCur(e.target.value.toUpperCase())} />
+          </div>
         </div>
-        <div>
-          <label className="label" htmlFor="cost_currency">{t("currency")}</label>
-          <input id="cost_currency" name="cost_currency" className="input uppercase" maxLength={3} value={cur} onChange={(e) => setCur(e.target.value.toUpperCase())} />
-        </div>
-        <div className="col-span-3 -mt-2"><UsdHint amount={costAmt === "" ? null : Number(costAmt)} currency={cur} /></div>
+        <UsdHint amount={total} currency={cur} />
         {cur.length === 3 && cur !== currency && (
-          <div className="col-span-3">
+          <div>
             <label className="label" htmlFor="fx_rate_to_trip">{t("fx")} — {t("fxHint", { cur, trip: currency })}</label>
             <input id="fx_rate_to_trip" name="fx_rate_to_trip" type="number" min="0" step="any" className="input" defaultValue={plan?.fx_rate_to_trip ?? ""} />
           </div>
         )}
-      </div>
+      </fieldset>
+
+      <fieldset className="space-y-2">
+        <legend className="label">{t("planTodos")}</legend>
+        <input type="hidden" name="new_todos" value={JSON.stringify(cleanTodos)} />
+        {todoLines.map((x, i) => (
+          <div key={i} className="grid grid-cols-[1fr_8rem_auto] items-center gap-2">
+            <input className="input" maxLength={200} placeholder={t("planTodoPh")} value={x.title} onChange={(e) => patchTodo(i, { title: e.target.value })} />
+            <select className="input" value={x.cat} onChange={(e) => patchTodo(i, { cat: e.target.value })} aria-label={t("todoCategory")}>
+              <option value="b:plan">{t("catPlan")}</option>
+              {isCosplay && <option value="b:cosplay">Cosplay</option>}
+              <option value="b:general">{t("catGeneral")}</option>
+              {categories.map((c) => <option key={c.id} value={`c:${c.id}`}>{c.name}</option>)}
+            </select>
+            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")} onClick={() => setTodoLines(todoLines.filter((_, k) => k !== i))}><X size={14} /></button>
+          </div>
+        ))}
+        <button type="button" className="btn btn-sm" onClick={() => setTodoLines([...todoLines, { title: "", cat: isCosplay ? "b:cosplay" : "b:plan" }])}><Plus size={14} /> {t("addPlanTodo")}</button>
+      </fieldset>
 
       <div>
         <label className="label" htmlFor="link">{t("link")}</label>

@@ -4,7 +4,7 @@
 create extension if not exists "pgcrypto";
 
 create type plan_type as enum
-  ('breakfast','lunch','dinner','tea','workshop','cosplay_photoshoot','date','hangout','event');
+  ('breakfast','lunch','dinner','tea','workshop','cosplay_photoshoot','date','hangout','event','task');
 create type booking_status as enum ('confirmed','not_booked');
 create type commute_method as enum ('walk','train','subway','bus','taxi','flight','car','bike','other');
 create type payment_method as enum ('ticket','ic_card','cash');
@@ -86,6 +86,9 @@ create table plans (
   note text,
   -- cosplay_photoshoot only
   character_name text,
+  photographer_name text,                              -- cosplay_photoshoot only
+  photographer_fee numeric(12,2),                      -- cosplay_photoshoot only (plan currency)
+  studio_fee numeric(12,2),                            -- cosplay_photoshoot only (plan currency)
   ics_token text not null unique default encode(gen_random_bytes(12),'hex'),  -- unguessable per-plan .ics link
   -- normal: per viewer rules | participants_only: only owner + listed participants (hidden from can_view_all viewers not on the plan)
   -- owner_only: only the owner. Both non-normal levels still count as 'busy' in availability, with no details.
@@ -95,6 +98,19 @@ create table plans (
   created_at timestamptz default now()
 );
 create index on plans (trip_id, start_at);
+
+-- Itemised costs. plans.cost always holds the computed TOTAL
+-- (photographer_fee + studio_fee + sum(items; per_hour items are amount x duration hours)),
+-- so dashboards / exports / viewer shaping keep reading one number.
+create table plan_cost_items (
+  id uuid primary key default gen_random_uuid(),
+  plan_id uuid not null references plans(id) on delete cascade,
+  label text not null,
+  amount numeric(12,2) not null check (amount >= 0),
+  per_hour boolean not null default false,
+  position int not null default 0
+);
+create index on plan_cost_items (plan_id, position);
 
 create table plan_people (
   plan_id uuid references plans(id) on delete cascade,
@@ -138,10 +154,19 @@ create table commutes (
   note text
 );
 
+-- Owner-defined to-do categories (the built-in enum categories stay as-is)
+create table todo_categories (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references trips(id) on delete cascade,
+  name text not null,
+  position int not null default 0
+);
+
 create table todos (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references trips(id) on delete cascade,
   category todo_category not null default 'general',
+  category_id uuid references todo_categories(id) on delete set null,  -- custom category; null = use built-in `category`
   title text not null,
   done boolean not null default false,
   due_date date,
@@ -217,7 +242,7 @@ create table fx_rates (
 do $$
 declare t text;
 begin
-  foreach t in array array['trips','people','hotels','plans','plan_people','plan_photos','commutes','todos','viewer_sessions','viewer_otps','fx_rates','availability_blocks','plan_requests']
+  foreach t in array array['trips','people','hotels','plans','plan_people','plan_photos','commutes','todos','todo_categories','plan_cost_items','viewer_sessions','viewer_otps','fx_rates','availability_blocks','plan_requests']
   loop
     execute format('alter table %I enable row level security', t);
   end loop;
@@ -230,6 +255,8 @@ create policy hotels_owner   on hotels   for all using (exists (select 1 from tr
 create policy plans_owner    on plans    for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
 create policy commutes_owner on commutes for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
 create policy todos_owner    on todos    for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
+create policy todo_categories_owner on todo_categories for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
+create policy plan_cost_items_owner on plan_cost_items for all using (exists (select 1 from plans p join trips x on x.id = p.trip_id where p.id = plan_id and x.owner_id = auth.uid()));
 create policy plan_people_owner on plan_people for all using (exists (select 1 from plans p join trips x on x.id = p.trip_id where p.id = plan_id and x.owner_id = auth.uid()));
 create policy plan_photos_owner on plan_photos for all using (exists (select 1 from plans p join trips x on x.id = p.trip_id where p.id = plan_id and x.owner_id = auth.uid()));
 create policy viewer_sessions_owner on viewer_sessions for select using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));

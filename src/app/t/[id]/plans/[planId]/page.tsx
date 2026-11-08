@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { ArrowLeft, Check, Circle, CircleCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Circle, CircleCheck, Copy, Trash2 } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { ConfirmButton } from "@/components/confirm-button";
 import { PhotoUploader } from "@/components/photo-uploader";
@@ -10,7 +10,7 @@ import { PlanReportExport } from "@/components/plan-report-export";
 import { PlanForm } from "@/components/plan-form";
 import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
-import { addPlanTodo, deletePlan, deletePlanTodo, setPlanCompleted, togglePlanTodo, updatePlan } from "@/app/actions";
+import { addPlanTodo, deletePlan, duplicatePlan, deletePlanTodo, setPlanCompleted, togglePlanTodo, updatePlan } from "@/app/actions";
 import { headers } from "next/headers";
 import { fmtMoney } from "@/lib/money";
 import { utcToLocal } from "@/lib/tz";
@@ -24,13 +24,15 @@ export default async function EditPlan({ params }: { params: Promise<{ id: strin
   const te = await getTranslations("export");
   const locale = await getLocale();
   const supabase = await createClient();
-  const [{ data: tripRow }, { data: planRow }, { data: peopleRows }, { data: ppRows }, { data: todoRows }, { data: photoRows }] = await Promise.all([
+  const [{ data: tripRow }, { data: planRow }, { data: peopleRows }, { data: ppRows }, { data: todoRows }, { data: photoRows }, { data: itemRows }, { data: catRows }] = await Promise.all([
     supabase.from("trips").select("*").eq("id", id).maybeSingle(),
     supabase.from("plans").select("*").eq("id", planId).eq("trip_id", id).maybeSingle(),
     supabase.from("people").select("*").eq("trip_id", id).order("is_me", { ascending: false }).order("name"),
     supabase.from("plan_people").select("person_id").eq("plan_id", planId),
     supabase.from("todos").select("*").eq("plan_id", planId).eq("category", "cosplay").order("done").order("title"),
     supabase.from("plan_photos").select("id,storage_path").eq("plan_id", planId).order("created_at"),
+    supabase.from("plan_cost_items").select("label,amount,per_hour").eq("plan_id", planId).order("position"),
+    supabase.from("todo_categories").select("id,name").eq("trip_id", id).order("position"),
   ]);
   if (!tripRow || !planRow) notFound();
   const trip = tripRow as Trip;
@@ -58,17 +60,24 @@ export default async function EditPlan({ params }: { params: Promise<{ id: strin
         <Link href={`/t/${id}`} className="inline-flex items-center gap-1 text-muted hover:text-text"><ArrowLeft size={14} /> {c("back")}</Link>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">{t("editTitle")}</h1>
-          <form action={setPlanCompleted.bind(null, id, planId, !plan.completed)}>
-            <button className={`btn btn-sm ${plan.completed ? "text-success" : ""}`}>
-              {plan.completed ? <CircleCheck size={14} /> : <Circle size={14} />} {plan.completed ? t("markIncomplete") : t("markComplete")}
-            </button>
-          </form>
+          <div className="flex gap-2">
+            <form action={duplicatePlan.bind(null, id, planId)}>
+              <button className="btn btn-sm"><Copy size={14} /> {t("copy")}</button>
+            </form>
+            <form action={setPlanCompleted.bind(null, id, planId, !plan.completed)}>
+              <button className={`btn btn-sm ${plan.completed ? "text-success" : ""}`}>
+                {plan.completed ? <CircleCheck size={14} /> : <Circle size={14} />} {plan.completed ? t("markIncomplete") : t("markComplete")}
+              </button>
+            </form>
+          </div>
         </div>
 
         <div className="card p-5">
           <PlanForm
             action={updatePlan.bind(null, id, planId)}
             plan={plan}
+            costItems={((itemRows ?? []) as { label: string; amount: number | string; per_hour: boolean }[]).map((i) => ({ ...i, amount: Number(i.amount) }))}
+            categories={(catRows ?? []) as { id: string; name: string }[]}
             planPeople={(ppRows ?? []).map((r) => r.person_id as string)}
             people={(peopleRows ?? []) as Person[]}
             tz={trip.timezone}

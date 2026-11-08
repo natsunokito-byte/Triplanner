@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { localDate, localToUtc, utcToLocal } from "@/lib/tz";
 import { rateForDay } from "@/lib/fx";
 import { PLAN_TYPES, VISIBILITIES } from "@/lib/plan-types";
+import { planTotal, type CostItem } from "@/lib/cost";
 import { METHODS, PAYMENTS } from "@/lib/commute";
 
 const localeSchema = z.enum(["zh-TW", "en"]);
@@ -306,11 +307,13 @@ const planSchema = z.object({
   location_address: optText(300),
   start: localDt,
   duration_min: z.coerce.number().int().min(30).max(2880),
-  cost: z
-    .string()
-    .trim()
-    .transform((s) => (s === "" ? null : Number(s)))
-    .pipe(z.number().min(0).max(1e9).nullable()),
+  cost_items: z
+    .array(z.object({ label: z.string().trim().min(1).max(80), amount: z.number().min(0).max(1e9), per_hour: z.boolean() }))
+    .max(30),
+  photographer_name: optText(120),
+  photographer_fee: z.string().trim().transform((s) => (s === "" ? null : Number(s))).pipe(z.number().min(0).max(1e9).nullable()),
+  studio_fee: z.string().trim().transform((s) => (s === "" ? null : Number(s))).pipe(z.number().min(0).max(1e9).nullable()),
+  new_todos: z.array(z.object({ title: z.string().trim().min(1).max(200), cat: z.string().max(60) })).max(30),
   cost_currency: z
     .string()
     .trim()
@@ -331,6 +334,13 @@ const planSchema = z.object({
 async function parsePlan(supabase: Awaited<ReturnType<typeof createClient>>, tripId: string, fd: FormData) {
   const { data: trip, error } = await supabase.from("trips").select("timezone,currency").eq("id", tripId).single();
   if (error || !trip) throw new Error("trip not found");
+  const jsonField = (k: string): unknown => {
+    try {
+      return JSON.parse(String(fd.get(k) ?? "[]"));
+    } catch {
+      return [];
+    }
+  };
   const v = planSchema.parse({
     type: fd.get("type"),
     title: fd.get("title"),
@@ -338,7 +348,11 @@ async function parsePlan(supabase: Awaited<ReturnType<typeof createClient>>, tri
     location_address: String(fd.get("location_address") ?? ""),
     start: fd.get("start"),
     duration_min: fd.get("duration_min"),
-    cost: String(fd.get("cost") ?? ""),
+    cost_items: jsonField("cost_items"),
+    photographer_name: String(fd.get("photographer_name") ?? ""),
+    photographer_fee: String(fd.get("photographer_fee") ?? ""),
+    studio_fee: String(fd.get("studio_fee") ?? ""),
+    new_todos: jsonField("new_todos"),
     cost_currency: String(fd.get("cost_currency") ?? ""),
     fx_rate_to_trip: String(fd.get("fx_rate_to_trip") ?? ""),
     link: String(fd.get("link") ?? ""),
@@ -347,11 +361,21 @@ async function parsePlan(supabase: Awaited<ReturnType<typeof createClient>>, tri
     visibility: fd.get("visibility") ?? "normal",
     people: fd.getAll("person").map(String),
   });
-  const { start, people, ...rest } = v;
+  const { start, people, cost_items, new_todos, ...rest } = v;
   const sameCur = !rest.cost_currency || rest.cost_currency === trip.currency;
+  const isCosplay = rest.type === "cosplay_photoshoot";
+  const photographer_fee = isCosplay ? rest.photographer_fee : null;
+  const studio_fee = isCosplay ? rest.studio_fee : null;
   return {
+    items: cost_items as CostItem[],
+    newTodos: new_todos,
     values: {
       ...rest,
+      photographer_name: isCosplay ? rest.photographer_name : null,
+      photographer_fee,
+      studio_fee,
+      // plans.cost is always the computed total (server-side; the client preview is advisory only)
+      cost: planTotal({ items: cost_items, durationMin: rest.duration_min, photographerFee: photographer_fee, studioFee: studio_fee }),
       start_at: localToUtc(start, trip.timezone).toISOString(),
       cost_currency: sameCur ? null : rest.cost_currency,
       fx_rate_to_trip: sameCur ? null : rest.fx_rate_to_trip,
@@ -371,11 +395,42 @@ async function syncPlanPeople(supabase: Awaited<ReturnType<typeof createClient>>
   if (rows.length) await supabase.from("plan_people").insert(rows);
 }
 
+async function saveCostItems(supabase: Awaited<ReturnType<typeof createClient>>, planId: string, items: CostItem[]) {
+  await supabase.from("plan_cost_items").delete().eq("plan_id", planId);
+  if (items.length === 0) return;
+  const { error } = await supabase
+    .from("plan_cost_items")
+    .insert(items.map((i, position) => ({ plan_id: planId, label: i.label, amount: i.amount, per_hour: i.per_hour, position })));
+  if (error) throw new Error(error.message);
+}
+
+/** cat: "b:<builtin>" (plan | cosplay | general) or "c:<custom category uuid>". Unknown values fall back to built-in "plan". */
+async function insertPlanTodos(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string,
+  planId: string,
+  list: { title: string; cat: string }[],
+) {
+  if (list.length === 0) return;
+  const { data: cats } = await supabase.from("todo_categories").select("id").eq("trip_id", tripId);
+  const valid = new Set((cats ?? []).map((c) => c.id as string));
+  const rows = list.map((x, i) => {
+    const custom = x.cat.startsWith("c:") && valid.has(x.cat.slice(2)) ? x.cat.slice(2) : null;
+    const b = x.cat.slice(2);
+    const category = custom ? "general" : x.cat.startsWith("b:") && ["plan", "cosplay", "general"].includes(b) ? b : "plan";
+    return { trip_id: tripId, plan_id: planId, title: x.title, category, category_id: custom, sort: i };
+  });
+  const { error } = await supabase.from("todos").insert(rows);
+  if (error) throw new Error(error.message);
+}
+
 export async function createPlan(tripId: string, fd: FormData) {
   const { supabase } = await requireUser();
-  const { values, personIds } = await parsePlan(supabase, tripId, fd);
+  const { values, personIds, items, newTodos } = await parsePlan(supabase, tripId, fd);
   const { data, error } = await supabase.from("plans").insert({ ...values, trip_id: tripId }).select("id").single();
   if (error) throw new Error(error.message);
+  await saveCostItems(supabase, data.id, items);
+  await insertPlanTodos(supabase, tripId, data.id, newTodos);
   await syncPlanPeople(supabase, tripId, data.id, personIds);
   revalidatePath(`/t/${tripId}`);
   redirect(`/t/${tripId}`);
@@ -383,13 +438,43 @@ export async function createPlan(tripId: string, fd: FormData) {
 
 export async function updatePlan(tripId: string, planId: string, fd: FormData) {
   const { supabase } = await requireUser();
-  const { values, personIds } = await parsePlan(supabase, tripId, fd);
+  const { values, personIds, items, newTodos } = await parsePlan(supabase, tripId, fd);
   const { error } = await supabase.from("plans").update(values).eq("id", planId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
+  await saveCostItems(supabase, planId, items);
+  await insertPlanTodos(supabase, tripId, planId, newTodos);
   await freezePlanRate(supabase, tripId, planId); // currency may have changed on an already-completed plan
   await syncPlanPeople(supabase, tripId, planId, personIds);
   revalidatePath(`/t/${tripId}`);
   redirect(`/t/${tripId}`);
+}
+
+/** Copy a plan (people, cost items, checklist). Not copied: completion, photos, frozen FX, .ics link. */
+export async function duplicatePlan(tripId: string, planId: string) {
+  const { supabase } = await requireUser();
+  const { data: src, error: e0 } = await supabase.from("plans").select("*").eq("id", planId).eq("trip_id", tripId).single();
+  if (e0 || !src) throw new Error("plan not found");
+  const t = await getTranslations("plan");
+  const {
+    id: _id, created_at: _c, ics_token: _t, completed: _d, completed_at: _ca, usd_per_unit_at_completion: _u, ...keep
+  } = src as Record<string, unknown>;
+  void [_id, _c, _t, _d, _ca, _u];
+  const { data: copy, error } = await supabase
+    .from("plans")
+    .insert({ ...keep, title: `${String(src.title).slice(0, 140)} ${t("copySuffix")}`, completed: false })
+    .select("id")
+    .single();
+  if (error || !copy) throw new Error(error?.message ?? "copy failed");
+  const [{ data: items }, { data: pp }, { data: todos }] = await Promise.all([
+    supabase.from("plan_cost_items").select("label,amount,per_hour,position").eq("plan_id", planId),
+    supabase.from("plan_people").select("person_id").eq("plan_id", planId),
+    supabase.from("todos").select("category,category_id,title,due_date,sort").eq("plan_id", planId),
+  ]);
+  if (items?.length) await supabase.from("plan_cost_items").insert(items.map((i) => ({ ...i, plan_id: copy.id })));
+  if (pp?.length) await supabase.from("plan_people").insert(pp.map((r) => ({ plan_id: copy.id, person_id: r.person_id })));
+  if (todos?.length) await supabase.from("todos").insert(todos.map((x) => ({ ...x, trip_id: tripId, plan_id: copy.id, done: false })));
+  revalidatePath(`/t/${tripId}`);
+  redirect(`/t/${tripId}/plans/${copy.id}`);
 }
 
 export async function deletePlan(tripId: string, planId: string) {
@@ -641,4 +726,80 @@ export async function deleteGeneralTodo(tripId: string, todoId: string) {
   const { error } = await supabase.from("todos").delete().eq("id", todoId).eq("trip_id", tripId).eq("category", "general");
   if (error) throw new Error(error.message);
   revalidatePath(`/t/${tripId}/dashboard`);
+}
+
+
+// ───────────────────────── To-do page & custom categories (M13) ─────────────────────────
+const todoPath = (tripId: string) => `/t/${tripId}/todos`;
+
+export async function createTodoCategory(tripId: string, fd: FormData) {
+  const { supabase } = await requireUser();
+  const name = z.string().trim().min(1).max(40).parse(fd.get("name"));
+  const { count } = await supabase.from("todo_categories").select("id", { count: "exact", head: true }).eq("trip_id", tripId);
+  if ((count ?? 0) >= 30) throw new Error("too many categories");
+  const { error } = await supabase.from("todo_categories").insert({ trip_id: tripId, name, position: count ?? 0 });
+  if (error) throw new Error(error.message);
+  revalidatePath(todoPath(tripId));
+}
+
+export async function renameTodoCategory(tripId: string, categoryId: string, fd: FormData) {
+  const { supabase } = await requireUser();
+  const name = z.string().trim().min(1).max(40).parse(fd.get("name"));
+  const { error } = await supabase.from("todo_categories").update({ name }).eq("id", categoryId).eq("trip_id", tripId);
+  if (error) throw new Error(error.message);
+  revalidatePath(todoPath(tripId));
+}
+
+/** Todos in a deleted category are kept (category_id -> null, they fall back to their built-in category). */
+export async function deleteTodoCategory(tripId: string, categoryId: string) {
+  const { supabase } = await requireUser();
+  const { error } = await supabase.from("todo_categories").delete().eq("id", categoryId).eq("trip_id", tripId);
+  if (error) throw new Error(error.message);
+  revalidatePath(todoPath(tripId));
+}
+
+export async function addTodoItem(tripId: string, fd: FormData) {
+  const { supabase } = await requireUser();
+  const title = z.string().trim().min(1).max(200).parse(fd.get("title"));
+  const due = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().parse(String(fd.get("due_date") ?? "") || null);
+  const cat = String(fd.get("cat") ?? "b:general");
+  let category_id: string | null = null;
+  if (cat.startsWith("c:")) {
+    const { data } = await supabase.from("todo_categories").select("id").eq("id", cat.slice(2)).eq("trip_id", tripId).maybeSingle();
+    category_id = data?.id ?? null;
+  }
+  const { error } = await supabase.from("todos").insert({ trip_id: tripId, category: "general", category_id, title, due_date: due });
+  if (error) throw new Error(error.message);
+  revalidatePath(todoPath(tripId));
+}
+
+export async function toggleTodoItem(tripId: string, todoId: string, done: boolean) {
+  const { supabase } = await requireUser();
+  const { error } = await supabase.from("todos").update({ done }).eq("id", todoId).eq("trip_id", tripId);
+  if (error) throw new Error(error.message);
+  revalidatePath(todoPath(tripId));
+  revalidatePath(`/t/${tripId}/dashboard`);
+}
+
+/** Move any todo into a custom category ("b:" prefix = back to its built-in one). */
+export async function moveTodoItem(tripId: string, todoId: string, fd: FormData) {
+  const { supabase } = await requireUser();
+  const cat = String(fd.get("cat") ?? "");
+  let category_id: string | null = null;
+  if (cat.startsWith("c:")) {
+    const { data } = await supabase.from("todo_categories").select("id").eq("id", cat.slice(2)).eq("trip_id", tripId).maybeSingle();
+    if (!data) return;
+    category_id = data.id;
+  }
+  const { error } = await supabase.from("todos").update({ category_id }).eq("id", todoId).eq("trip_id", tripId);
+  if (error) throw new Error(error.message);
+  revalidatePath(todoPath(tripId));
+}
+
+/** Delete: user-made todos only (auto-generated hotel/ticket ones are managed from their source). */
+export async function deleteTodoItem(tripId: string, todoId: string) {
+  const { supabase } = await requireUser();
+  const { error } = await supabase.from("todos").delete().eq("id", todoId).eq("trip_id", tripId).eq("auto_generated", false);
+  if (error) throw new Error(error.message);
+  revalidatePath(todoPath(tripId));
 }

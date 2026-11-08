@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { CalendarClock, ImageDown, LayoutDashboard, MapPin, Settings } from "lucide-react";
+import { CalendarClock, ListChecks, ImageDown, LayoutDashboard, MapPin, Settings } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { createClient } from "@/lib/supabase/server";
 import { touchTrip } from "@/app/actions";
@@ -17,6 +17,7 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
   const c = await getTranslations("common");
   const te = await getTranslations("export");
   const td = await getTranslations("dash");
+  const tt = await getTranslations("todos");
   const supabase = await createClient();
   const { data } = await supabase.from("trips").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
@@ -65,6 +66,7 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
           <div className="flex flex-wrap items-center gap-2">
             <CurrencyToggle />
             <Link href={`/t/${id}/dashboard`} className="btn btn-sm"><LayoutDashboard size={14} /> {td("title")}</Link>
+            <Link href={`/t/${id}/todos`} className="btn btn-sm"><ListChecks size={14} /> {tt("title")}</Link>
             <Link href={`/t/${id}/requests`} className="btn btn-sm"><CalendarClock size={14} /> {tr("badge")}{(pendingCount ?? 0) > 0 && <span className="rounded-full bg-primary px-1.5 text-[11px] text-white">{pendingCount}</span>}</Link>
             <Link href={`/t/${id}/report`} className="btn btn-sm"><ImageDown size={14} /> {te("tripReportLink")}</Link>
             <Link href={`/t/${id}/settings`} className="btn btn-sm"><Settings size={14} /> {c("settings")}</Link>

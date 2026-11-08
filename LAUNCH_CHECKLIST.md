@@ -1,6 +1,6 @@
 # 上線前檢查清單
 
-> M0–M12 的程式只通過 build／lint／型別檢查／單元測試（36 項），**從未接過真的 Supabase、Resend、Google、Turnstile 跑過**。這份清單的重點就是把這些補上。
+> M0–M12 的程式只通過 build／lint／型別檢查／單元測試（44 項），**從未接過真的 Supabase、Resend、Google、Turnstile 跑過**。這份清單的重點就是把這些補上。
 
 ## 1. Supabase
 - [ ] 建立專案，在 SQL Editor 執行 `supabase/schema.sql`（若已跑過舊版：補 `trips.availability_blocked_emails text[] not null default '{}'`、`viewer_otps.purpose text not null default 'view'`）
@@ -99,3 +99,8 @@
 - 匯出的圖片若照片載入失敗會整張失敗（見第 1 節 CORS）
 - 空檔頁／檢視頁沒有應用層 IP 限流（靠主機平台的 rate limiting）
 - 請求、OTP 寄信、接受／婉拒流程沒有用模擬資料庫寫自動化測試，只靠上面的手動測試
+
+
+## M13 之後多一步
+
+- [ ] 已建立過資料庫的人：Supabase → SQL Editor → 貼上 `supabase/migrations/002_m13.sql` → Run（只跑一次）。沒跑的話，新增行程、待辦頁會出錯。

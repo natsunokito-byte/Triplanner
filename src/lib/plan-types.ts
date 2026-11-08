@@ -1,13 +1,13 @@
-import { Coffee, Utensils, UtensilsCrossed, CupSoda, Hammer, Sparkles, Heart, Users, Ticket, type LucideIcon } from "lucide-react";
+import { Coffee, Utensils, UtensilsCrossed, CupSoda, Hammer, Sparkles, Heart, Users, Ticket, ListChecks, type LucideIcon } from "lucide-react";
 
 export const PLAN_TYPES = [
-  "breakfast", "lunch", "dinner", "tea", "workshop", "cosplay_photoshoot", "date", "hangout", "event",
+  "breakfast", "lunch", "dinner", "tea", "workshop", "cosplay_photoshoot", "date", "hangout", "event", "task",
 ] as const;
 export type PlanType = (typeof PLAN_TYPES)[number];
 
 export const PLAN_ICON: Record<PlanType, LucideIcon> = {
   breakfast: Coffee, lunch: Utensils, dinner: UtensilsCrossed, tea: CupSoda, workshop: Hammer,
-  cosplay_photoshoot: Sparkles, date: Heart, hangout: Users, event: Ticket,
+  cosplay_photoshoot: Sparkles, date: Heart, hangout: Users, event: Ticket, task: ListChecks,
 };
 
 // CSS variable key for each type (see globals.css --pt-*)

@@ -44,6 +44,7 @@ export type Todo = {
   id: string;
   trip_id: string;
   category: "hotel" | "ticket" | "cosplay" | "plan" | "general";
+  category_id: string | null;
   title: string;
   done: boolean;
   hotel_id: string | null;
@@ -70,6 +71,9 @@ export type Plan = {
   link: string | null;
   note: string | null;
   character_name: string | null;
+  photographer_name: string | null;
+  photographer_fee: number | null;
+  studio_fee: number | null;
   visibility: Visibility;
   completed: boolean;
   usd_per_unit_at_completion: number | null;

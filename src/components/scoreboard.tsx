@@ -3,7 +3,10 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { BarList, formatMinutes, type BarItem } from "./bar-list";
-import { PLAN_TYPES, type PlanType } from "@/lib/plan-types";
+import { PLAN_TYPES as ALL_TYPES, type PlanType } from "@/lib/plan-types";
+
+// Tasks are chores, not time spent together — keep them off the scoreboard.
+const PLAN_TYPES = ALL_TYPES.filter((k) => k !== "task");
 
 export type ScoreEntry = { type: PlanType; duration: number; personIds: string[] };
 

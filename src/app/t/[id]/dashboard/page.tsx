@@ -95,7 +95,7 @@ export default async function Dashboard({ params }: { params: Promise<{ id: stri
   const entries: ScoreEntry[] = plans
     .filter((p) => p.completed && p.visibility !== "owner_only")
     .map((p) => ({ type: p.type, duration: p.duration_min, personIds: (ppRows ?? []).filter((r) => r.plan_id === p.id).map((r) => r.person_id as string) }))
-    .filter((e) => (PLAN_TYPES as readonly string[]).includes(e.type));
+    .filter((e) => (PLAN_TYPES as readonly string[]).includes(e.type) && e.type !== "task"); // tasks are chores, not time together
   const hangoutMin = entries.filter((e) => e.personIds.some((pid) => others.some((o) => o.id === pid))).reduce((s, e) => s + e.duration, 0);
 
   const exportData = {
@@ -165,7 +165,7 @@ export default async function Dashboard({ params }: { params: Promise<{ id: stri
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-base font-semibold">{t("todos")}</h2>
+          <div className="flex items-center justify-between"><h2 className="text-base font-semibold">{t("todos")}</h2><Link href={`/t/${id}/todos`} className="text-sm text-primary hover:underline">{t("openTodoPage")}</Link></div>
           {CATS.map((cat) => {
             const list = byCat.get(cat) ?? [];
             if (list.length === 0 && cat !== "general") return null;

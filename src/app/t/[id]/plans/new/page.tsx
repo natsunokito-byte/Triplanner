@@ -21,9 +21,10 @@ export default async function NewPlan({
   const t = await getTranslations("plan");
   const c = await getTranslations("common");
   const supabase = await createClient();
-  const [{ data: tripRow }, { data: peopleRows }] = await Promise.all([
+  const [{ data: tripRow }, { data: peopleRows }, { data: catRows }] = await Promise.all([
     supabase.from("trips").select("*").eq("id", id).maybeSingle(),
     supabase.from("people").select("*").eq("trip_id", id).order("is_me", { ascending: false }).order("name"),
+    supabase.from("todo_categories").select("id,name").eq("trip_id", id).order("position"),
   ]);
   if (!tripRow) notFound();
   const trip = tripRow as Trip;
@@ -39,6 +40,7 @@ export default async function NewPlan({
           <PlanForm
             action={createPlan.bind(null, id)}
             people={(peopleRows ?? []) as Person[]}
+            categories={(catRows ?? []) as { id: string; name: string }[]}
             tz={trip.timezone}
             currency={trip.currency}
             defaults={{ start: `${date}T12:00`, type }}

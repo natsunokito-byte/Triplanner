@@ -139,7 +139,8 @@
       "cosplay_photoshoot": "Cosplay photoshoot",
       "date": "Date",
       "hangout": "Hangout",
-      "event": "Event"
+      "event": "Event",
+      "task": "Task"
     },
     "add": "Add plan",
     "newTitle": "Add plan",
@@ -154,8 +155,8 @@
     "people": "People",
     "noPeople": "No people yet. Add some in trip settings.",
     "start": "Start time",
-    "duration": "Duration (min)",
-    "durationHint": "Minimum 30 minutes",
+    "duration": "Duration (hours)",
+    "durationHint": "Minimum 0.5 hours",
     "cost": "Cost",
     "currency": "Currency",
     "fx": "Exchange rate",
@@ -203,7 +204,27 @@
     "noPhotos": "No photos yet.",
     "swipeHint": "Swipe sideways to change day; use the menu under a card to move it.",
     "moveTo": "Move to",
-    "saveFailed": "Couldn't save. Please try again."
+    "saveFailed": "Couldn't save. Please try again.",
+    "itemDefault": "Cost",
+    "itemLabel": "Item",
+    "itemLabelPh": "Item, e.g. ticket, rental",
+    "itemAmount": "Amount",
+    "removeItem": "Remove",
+    "addCostItem": "Add cost item",
+    "perHour": "Charged per hour (× {h} h)",
+    "total": "Total",
+    "totalIncludes": "= photographer fee + studio fee + other items",
+    "photographer": "Photographer",
+    "photographerFee": "Photographer fee",
+    "studioFee": "Studio fee",
+    "planTodos": "To-dos",
+    "planTodoPh": "e.g. book, buy tickets, prepare props",
+    "todoCategory": "To-do category",
+    "catPlan": "Plan",
+    "catGeneral": "General",
+    "addPlanTodo": "Add to-do",
+    "copy": "Duplicate plan",
+    "copySuffix": "(copy)"
   },
   "commute": {
     "methods": {
@@ -305,7 +326,8 @@
     "table": "Table view",
     "colName": "Name",
     "colValue": "Value",
-    "back": "Back to trip"
+    "back": "Back to trip",
+    "openTodoPage": "Open to-do page →"
   },
   "viewer": {
     "title": "Trip itinerary",
@@ -434,5 +456,29 @@
       "pending": "Pending"
     },
     "badge": "Requests"
+  },
+  "todos": {
+    "title": "To-dos",
+    "open": "Open",
+    "done": "Done",
+    "all": "All",
+    "emptyOpen": "Nothing left to do — nice!",
+    "emptyDone": "Nothing completed yet.",
+    "reopen": "Mark as open",
+    "complete": "Mark done",
+    "due": "due {d}",
+    "move": "Move",
+    "add": "Add a to-do",
+    "titlePh": "e.g. book the studio, exchange cash",
+    "category": "Category",
+    "dueLabel": "Due date (optional)",
+    "addBtn": "Add",
+    "categories": "Custom categories",
+    "categoriesHint": "Create your own categories (e.g. luggage, bookings, gifts) to organise every to-do. Built-in Hotel, Ticket and Plan categories stay.",
+    "categoryName": "Category name",
+    "categoryPh": "New category name",
+    "addCategory": "Add category",
+    "deleteCategoryConfirm": "Delete this category? Its to-dos are kept and go back to their built-in category.",
+    "link": "To-dos"
   }
 }
