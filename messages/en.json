@@ -53,7 +53,8 @@
     "danger": "Danger zone",
     "deleteTrip": "Delete this trip",
     "deleteConfirm": "Delete this trip? All plans will be removed and this can't be undone.",
-    "searchUnavailable": "Destination search is unavailable (Google key needed). Type a name and press Enter to add it, then pick the timezone and currency yourself."
+    "searchUnavailable": "Destination search is unavailable (Google key needed). Type a name and press Enter to add it, then pick the timezone and currency yourself.",
+    "instantHint": "The actions below take effect immediately; no need to press Save."
   },
   "share": {
     "title": "Sharing",

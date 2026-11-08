@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SubmitButton } from "./submit-button";
 import { CostFields } from "./fx";
@@ -14,6 +15,9 @@ export function HotelForm({
   tz,
   currency,
   submitLabel,
+  formId,
+  intercepted = false,
+  back,
 }: {
   action: (fd: FormData) => Promise<void>;
   hotel?: { name: string; address: string | null; booking_status: Hotel["booking_status"]; cost: number | null; cost_currency: string | null; link: string | null; note: string | null };
@@ -21,8 +25,12 @@ export function HotelForm({
   tz: string;
   currency: string;
   submitLabel: string;
+  formId?: string;
+  intercepted?: boolean;
+  back?: string;
 }) {
   const t = useTranslations("hotel");
+  const router = useRouter();
   const [ci, setCi] = useState(defaults.check_in);
   const [co, setCo] = useState(defaults.check_out);
   const [status, setStatus] = useState<Hotel["booking_status"]>(hotel?.booking_status ?? "not_booked");
@@ -31,7 +39,16 @@ export function HotelForm({
   const bad = !!ci && !!co && co <= ci;
 
   return (
-    <form action={action} className="space-y-5">
+    <form
+      id={formId}
+      action={async (fd) => {
+        if (bad) return;
+        await action(fd);
+        if (intercepted) router.back();
+      }}
+      className="space-y-5"
+    >
+      {(intercepted || back) && <input type="hidden" name="back" value={intercepted ? "close" : back} />}
       <div>
         <label className="label" htmlFor="name">{t("name")}</label>
         <input id="name" name="name" className="input" required maxLength={160} defaultValue={hotel?.name} />
@@ -80,7 +97,7 @@ export function HotelForm({
         <textarea id="note" name="note" rows={3} className="input h-auto py-2" defaultValue={hotel?.note ?? ""} />
       </div>
 
-      <SubmitButton className={bad ? "pointer-events-none opacity-50" : ""}>{submitLabel}</SubmitButton>
+      {!formId && <SubmitButton className={bad ? "pointer-events-none opacity-50" : ""}>{submitLabel}</SubmitButton>}
     </form>
   );
 }

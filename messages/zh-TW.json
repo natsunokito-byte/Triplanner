@@ -53,7 +53,8 @@
     "danger": "危險區",
     "deleteTrip": "刪除這趟旅行",
     "deleteConfirm": "確定刪除？所有行程資料都會一併刪除，無法復原。",
-    "searchUnavailable": "目的地搜尋暫時無法使用（需要設定 Google 金鑰）。可以直接輸入名稱後按 Enter 新增，並手動選時區與幣別。"
+    "searchUnavailable": "目的地搜尋暫時無法使用（需要設定 Google 金鑰）。可以直接輸入名稱後按 Enter 新增，並手動選時區與幣別。",
+    "instantHint": "以下操作會立即生效，不需按「儲存」。"
   },
   "share": {
     "title": "分享",

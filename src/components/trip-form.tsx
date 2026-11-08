@@ -13,10 +13,13 @@ export function TripForm({
   action,
   initial,
   submitLabel,
+  bare = false,
 }: {
-  action: (fd: FormData) => Promise<void>;
+  action?: (fd: FormData) => Promise<void>;
   initial?: Trip;
-  submitLabel: string;
+  submitLabel?: string;
+  /** Render only the fields (no <form>, no submit button) so a parent form can own the save. */
+  bare?: boolean;
 }) {
   const t = useTranslations("trip");
   const tf = useTranslations("fx");
@@ -88,8 +91,9 @@ export function TripForm({
 
   const dateInvalid = !!start && !!end && end < start;
 
+  const Wrap = bare ? "div" : "form";
   return (
-    <form action={action} className="space-y-5">
+    <Wrap {...(bare ? {} : { action })} className="space-y-5">
       <div>
         <label className="label" htmlFor="title">{t("name")}</label>
         <input id="title" name="title" className="input" required maxLength={120} placeholder={t("namePh")} defaultValue={initial?.title} />
@@ -170,7 +174,7 @@ export function TripForm({
         </select>
       </div>
 
-      <SubmitButton className={dateInvalid ? "pointer-events-none opacity-50" : ""}>{submitLabel}</SubmitButton>
-    </form>
+      {!bare && <SubmitButton className={dateInvalid ? "pointer-events-none opacity-50" : ""}>{submitLabel}</SubmitButton>}
+    </Wrap>
   );
 }

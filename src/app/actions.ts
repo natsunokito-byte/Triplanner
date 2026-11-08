@@ -1,5 +1,6 @@
 "use server";
 
+import { updateAvailability } from "./availability-actions";
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -141,12 +142,12 @@ const personSchema = z.object({
   can_view_all: z.boolean(),
 });
 
-function parsePerson(fd: FormData) {
+function parsePerson(fd: FormData, prefix = "") {
   return personSchema.parse({
-    name: fd.get("name"),
-    email: String(fd.get("email") ?? ""),
-    locale: fd.get("locale") ?? "zh-TW",
-    can_view_all: fd.get("can_view_all") === "on",
+    name: fd.get(`${prefix}name`),
+    email: String(fd.get(`${prefix}email`) ?? ""),
+    locale: fd.get(`${prefix}locale`) ?? "zh-TW",
+    can_view_all: fd.get(`${prefix}can_view_all`) === "on",
   });
 }
 
@@ -162,6 +163,34 @@ export async function savePerson(tripId: string, personId: string, fd: FormData)
   const { error } = await supabase.from("people").update(parsePerson(fd)).eq("id", personId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
   revalidatePath(`/t/${tripId}/settings`);
+}
+
+/** One save for the whole settings drawer: trip, availability window, sharing toggles, every person row, and an optional new person. */
+export async function saveSettings(id: string, fd: FormData) {
+  const { supabase } = await requireUser();
+  // Parse everything first so a bad value fails before anything is written.
+  const trip = parseTrip(fd);
+  const ids = fd.getAll("person_ids").map(String);
+  const rows = ids.map((pid) => ({ pid, v: parsePerson(fd, `p:${pid}:`) }));
+  const newName = String(fd.get("new:name") ?? "").trim();
+  const added = newName ? parsePerson(fd, "new:") : null;
+  await updateAvailability(id, fd);
+  const { error } = await supabase
+    .from("trips")
+    .update({ ...trip, share_enabled: fd.get("share_enabled") === "on", viewers_see_costs: fd.get("viewers_see_costs") === "on" })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  for (const r of rows) {
+    const { error: e } = await supabase.from("people").update(r.v).eq("id", r.pid).eq("trip_id", id);
+    if (e) throw new Error(e.message);
+  }
+  if (added) {
+    const { error: e } = await supabase.from("people").insert({ ...added, trip_id: id });
+    if (e) throw new Error(e.message);
+  }
+  revalidatePath(`/t/${id}`, "layout");
+  if (fd.get("back") === "close") return;
+  redirect(safeBack(id, fd.get("back"), `/t/${id}`));
 }
 
 export async function deletePerson(tripId: string, personId: string) {
@@ -250,7 +279,8 @@ export async function createHotel(tripId: string, fd: FormData) {
   if (error) throw new Error(error.message);
   await syncHotelTodo(supabase, tripId, data);
   revalidatePath(`/t/${tripId}`, "layout");
-  redirect(`/t/${tripId}`);
+  if (fd.get("back") === "close") return; // drawer: the client closes it
+  redirect(safeBack(tripId, fd.get("back"), `/t/${tripId}`));
 }
 
 export async function updateHotel(tripId: string, hotelId: string, fd: FormData) {
@@ -266,15 +296,17 @@ export async function updateHotel(tripId: string, hotelId: string, fd: FormData)
   if (error) throw new Error(error.message);
   await syncHotelTodo(supabase, tripId, data);
   revalidatePath(`/t/${tripId}`, "layout");
-  redirect(`/t/${tripId}`);
+  if (fd.get("back") === "close") return; // drawer: the client closes it
+  redirect(safeBack(tripId, fd.get("back"), `/t/${tripId}`));
 }
 
-export async function deleteHotel(tripId: string, hotelId: string) {
+export async function deleteHotel(tripId: string, hotelId: string, back?: unknown) {
   const { supabase } = await requireUser();
   const { error } = await supabase.from("hotels").delete().eq("id", hotelId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
   revalidatePath(`/t/${tripId}`, "layout");
-  redirect(`/t/${tripId}`);
+  if (back === "close") return; // drawer: the client closes it
+  redirect(safeBack(tripId, back, `/t/${tripId}`));
 }
 
 export async function addHotelTodo(tripId: string, hotelId: string, fd: FormData) {
@@ -676,7 +708,8 @@ export async function createCommute(tripId: string, fd: FormData) {
   await saveStops(supabase, data.id, stops);
   await syncCommuteTodo(supabase, tripId, data);
   revalidatePath(`/t/${tripId}`, "layout");
-  redirect(`/t/${tripId}`);
+  if (fd.get("back") === "close") return; // drawer: the client closes it
+  redirect(safeBack(tripId, fd.get("back"), `/t/${tripId}`));
 }
 
 export async function updateCommute(tripId: string, commuteId: string, fd: FormData) {
@@ -688,15 +721,17 @@ export async function updateCommute(tripId: string, commuteId: string, fd: FormD
   await saveStops(supabase, commuteId, stops);
   await syncCommuteTodo(supabase, tripId, data);
   revalidatePath(`/t/${tripId}`, "layout");
-  redirect(`/t/${tripId}`);
+  if (fd.get("back") === "close") return; // drawer: the client closes it
+  redirect(safeBack(tripId, fd.get("back"), `/t/${tripId}`));
 }
 
-export async function deleteCommute(tripId: string, commuteId: string) {
+export async function deleteCommute(tripId: string, commuteId: string, back?: unknown) {
   const { supabase } = await requireUser();
   const { error } = await supabase.from("commutes").delete().eq("id", commuteId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
   revalidatePath(`/t/${tripId}`, "layout");
-  redirect(`/t/${tripId}`);
+  if (back === "close") return; // drawer: the client closes it
+  redirect(safeBack(tripId, back, `/t/${tripId}`));
 }
 
 export async function addCommuteTodo(tripId: string, commuteId: string, fd: FormData) {

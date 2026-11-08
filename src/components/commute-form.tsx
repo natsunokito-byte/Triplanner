@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, Plus, Sparkles, X } from "lucide-react";
 import { MAX_STOPS, legsOf, totalStay } from "@/lib/stops";
@@ -12,7 +13,7 @@ import { localToUtc } from "@/lib/tz";
 import type { Commute } from "@/lib/types";
 
 export function CommuteForm({
-  action, commute, fromPlanId, toPlanId, defaults, tz, currency, submitLabel, initialStops = [],
+  action, commute, fromPlanId, toPlanId, defaults, tz, currency, submitLabel, initialStops = [], formId, intercepted = false, back,
 }: {
   action: (fd: FormData) => Promise<void>;
   commute?: Commute;
@@ -22,9 +23,13 @@ export function CommuteForm({
   tz: string;
   currency: string;
   submitLabel: string;
+  formId?: string;
+  intercepted?: boolean;
+  back?: string;
   initialStops?: { label: string; stay_min: number }[];
 }) {
   const t = useTranslations("commute");
+  const router = useRouter();
   const [origin, setOrigin] = useState<PlaceValue>(defaults.origin);
   const [dest, setDest] = useState<PlaceValue>(defaults.dest);
   const [method, setMethod] = useState<Method>(defaults.method);
@@ -79,7 +84,16 @@ export function CommuteForm({
   const badDuration = !Number.isFinite(duration) || duration < 0;
 
   return (
-    <form action={action} className="space-y-5">
+    <form
+      id={formId}
+      action={async (fd) => {
+        if (badDuration) return;
+        await action(fd);
+        if (intercepted) router.back();
+      }}
+      className="space-y-5"
+    >
+      {(intercepted || back) && <input type="hidden" name="back" value={intercepted ? "close" : back} />}
       <input type="hidden" name="from_plan_id" value={fromPlanId ?? ""} />
       <input type="hidden" name="to_plan_id" value={toPlanId ?? ""} />
       <input type="hidden" name="distance_m" value={distance ?? ""} />
@@ -164,7 +178,7 @@ export function CommuteForm({
         <textarea id="note" name="note" rows={2} className="input h-auto py-2" defaultValue={commute?.note ?? ""} />
       </div>
 
-      <SubmitButton className={badDuration ? "pointer-events-none opacity-50" : ""}>{submitLabel}</SubmitButton>
+      {!formId && <SubmitButton className={badDuration ? "pointer-events-none opacity-50" : ""}>{submitLabel}</SubmitButton>}
     </form>
   );
 }
