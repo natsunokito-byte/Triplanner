@@ -66,6 +66,14 @@ body {
   .btn-primary { @apply bg-primary text-white border-transparent hover:bg-primary-hover; }
   .btn-danger { @apply text-danger; }
   .btn-sm { @apply h-8 px-3 text-xs; }
+  /* Page-level tabs (underline) — distinct from filter chips and segmented toggles. */
+  .tabs { @apply flex flex-wrap gap-x-6 border-b border-border; }
+  .tab { @apply -mb-px border-b-2 border-transparent px-1 pb-2 text-sm font-medium text-muted hover:text-text; }
+  .tab-active { @apply border-primary text-text; }
+  /* Segmented toggle for a 2-way view option. */
+  .seg { @apply inline-flex items-center rounded-[8px] border border-border bg-surface p-0.5; }
+  .seg-item { @apply inline-flex h-7 items-center rounded-[6px] px-3 text-xs text-muted hover:text-text; }
+  .seg-item-active { @apply bg-primary-soft font-medium text-primary; }
   .chip { @apply inline-flex items-center gap-1 h-7 px-3 rounded-full bg-primary-soft text-primary text-xs font-medium; }
 }
 

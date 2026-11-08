@@ -82,7 +82,8 @@ export default async function TodosPage({
       ? groupByDate(shown, dateOf).map((g) => ({ key: g.date ?? "none", heading: g.date ? dayFmt.format(new Date(g.date)) : t("noDate"), items: g.items }))
       : catGroups.map((g) => ({ key: g.key, heading: g.label, items: shown.filter((x) => catKeyOf(x) === g.key) })).filter((g) => g.items.length > 0);
 
-  const tabCls = (on: boolean) => `rounded-full px-4 py-1.5 text-sm ${on ? "bg-primary text-white" : "bg-surface-2 text-muted hover:text-text"}`;
+  const tabCls = (on: boolean) => `tab ${on ? "tab-active" : ""}`;
+  const segCls = (on: boolean) => `seg-item ${on ? "seg-item-active" : ""}`;
   const chipCls = (on: boolean) => `chip ${on ? "" : "!bg-surface-2 !text-muted"}`;
   const isTaskTab = tab === "task";
 
@@ -95,7 +96,7 @@ export default async function TodosPage({
           <h1 className="mt-1 text-[28px] font-semibold leading-tight">{trip.title} · {t("title")}</h1>
         </div>
 
-        <div className="flex flex-wrap gap-2" role="tablist">
+        <div className="tabs" role="tablist">
           <Link role="tab" aria-selected={tab === "open"} href={href({ tab: "open" })} className={tabCls(tab === "open")}>{t("open")} ({openCount})</Link>
           <Link role="tab" aria-selected={tab === "done"} href={href({ tab: "done" })} className={tabCls(tab === "done")}>{t("done")} ({doneCount})</Link>
           <Link role="tab" aria-selected={isTaskTab} href={href({ tab: "task" })} className={tabCls(isTaskTab)}>{t("taskTab")} ({taskOpen})</Link>
@@ -109,17 +110,16 @@ export default async function TodosPage({
         )}
 
         {hasCats && (
-          <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <div className="flex flex-wrap gap-2">
               <Link href={href({ cat: null })} className={chipCls(!filter)}>{t("all")}</Link>
               {catGroups.map((g) => (
                 <Link key={g.key} href={href({ cat: g.key })} className={chipCls(filter === g.key)}>{g.label}</Link>
               ))}
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted">
-              {t("groupBy")}
-              <Link href={href({ group: "date" })} className={chipCls(groupMode === "date")}>{t("byDate")}</Link>
-              <Link href={href({ group: "cat" })} className={chipCls(groupMode === "cat")}>{t("byCategory")}</Link>
+            <div className="seg" role="group" aria-label={t("groupBy")}>
+              <Link href={href({ group: "date" })} className={segCls(groupMode === "date")} aria-pressed={groupMode === "date"}>{t("byDate")}</Link>
+              <Link href={href({ group: "cat" })} className={segCls(groupMode === "cat")} aria-pressed={groupMode === "cat"}>{t("byCategory")}</Link>
             </div>
           </div>
         )}

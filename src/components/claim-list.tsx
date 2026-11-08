@@ -14,7 +14,7 @@ export function ClaimList({ token, items }: { token: string; items: ClaimItem[] 
   const [type, setType] = useState<string>("all");
   const types = [...new Map(items.map((i) => [i.type, i.typeLabel])).entries()];
   const shown = type === "all" ? items : items.filter((i) => i.type === type);
-  const chip = (active: boolean) => `btn btn-sm ${active ? "btn-primary" : ""}`;
+  const chip = (active: boolean) => `chip ${active ? "" : "!bg-surface-2 !text-muted"}`;
 
   return (
     <div className="space-y-4">

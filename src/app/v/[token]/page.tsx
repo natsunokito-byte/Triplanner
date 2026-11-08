@@ -114,7 +114,7 @@ export default async function ViewerPage({ params, searchParams }: { params: Pro
     .filter((p) => p.completed && (PLAN_TYPES as readonly string[]).includes(p.type))
     .map((p) => ({ type: p.type as PlanType, duration: p.duration_min, personIds: p.people.map((x) => x.id) }));
 
-  const tab = (active: boolean) => `btn btn-sm ${active ? "btn-primary" : ""}`;
+  const seg = (active: boolean) => `seg-item ${active ? "seg-item-active" : ""}`;
   return (
     <FxProvider ctx={ctx}>
       <AppHeader signedIn={false} />
@@ -126,10 +126,10 @@ export default async function ViewerPage({ params, searchParams }: { params: Pro
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {viewer.role === "full" && (
-              <>
-                <Link href={`/v/${token}?view=all`} className={tab(data.mode === "all")}>{t("viewAll")}</Link>
-                <Link href={`/v/${token}?view=mine`} className={tab(data.mode === "mine")}>{t("viewMine")}</Link>
-              </>
+              <div className="seg">
+                <Link href={`/v/${token}?view=all`} className={seg(data.mode === "all")}>{t("viewAll")}</Link>
+                <Link href={`/v/${token}?view=mine`} className={seg(data.mode === "mine")}>{t("viewMine")}</Link>
+              </div>
             )}
             {data.canSeeCosts && <CurrencyToggle />}
             <form action={signOutViewer.bind(null, token)}><button className="btn btn-sm">{t("signOut")}</button></form>
