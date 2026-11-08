@@ -1,12 +1,10 @@
 // Server-only helpers for the public "open claim" page: a visitor asks to join one of the owner's open plans.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendMail } from "./mail";
-import { normalizeEmail } from "./viewer-session";
 
 export const CLAIM_EXPIRY_DAYS = 14;
-const MAX_CLAIMS_PER_EMAIL_PER_DAY = 5;
+const MAX_CLAIMS_PER_NAME_PER_DAY = 5;
 const MAX_CLAIMS_PER_TRIP_PER_HOUR = 40;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type ClaimTrip = {
   id: string; owner_id: string; title: string; timezone: string; invite_locale: string;
@@ -15,31 +13,31 @@ export type ClaimTrip = {
 
 export const CLAIM_TRIP_COLS = "id,owner_id,title,timezone,invite_locale,availability_blocked_emails";
 
-export type ClaimInput = { name: string; email: string; message: string };
+export type ClaimInput = { name: string; message: string };
 export type ClaimResult = { ok: true } | { ok: false; error: "invalid" | "blocked" | "tooMany" | "duplicate" | "closed" };
 
 export async function createClaim(db: SupabaseClient, trip: ClaimTrip, planId: string, input: ClaimInput): Promise<ClaimResult> {
-  const email = normalizeEmail(input.email);
+  // Friends-only for now: no email is collected (claimer_email stays '' and no mail goes to the claimer).
   const name = input.name.trim().slice(0, 80);
-  if (!name || !EMAIL_RE.test(email) || email.length > 254) return { ok: false, error: "invalid" };
-  if ((trip.availability_blocked_emails ?? []).includes(email)) return { ok: false, error: "blocked" };
+  if (!name) return { ok: false, error: "invalid" };
 
-  const { data: plan } = await db.from("plans").select("id,title,start_at,plan_date,duration_min,open_claim,visibility,completed")
+  const { data: plan } = await db.from("plans").select("id,title,open_claim,visibility,completed")
     .eq("id", planId).eq("trip_id", trip.id).maybeSingle();
   if (!plan || !plan.open_claim || plan.visibility !== "normal" || plan.completed) return { ok: false, error: "closed" };
 
   const dayAgo = new Date(Date.now() - 86400000).toISOString();
   const hourAgo = new Date(Date.now() - 3600000).toISOString();
+  const safeName = name.replace(/[%_\\]/g, (c) => `\\${c}`);
   const [{ count: mine }, { count: all }, { count: dup }] = await Promise.all([
-    db.from("plan_claims").select("id", { count: "exact", head: true }).eq("trip_id", trip.id).eq("claimer_email", email).gte("created_at", dayAgo),
+    db.from("plan_claims").select("id", { count: "exact", head: true }).eq("trip_id", trip.id).ilike("claimer_name", safeName).gte("created_at", dayAgo),
     db.from("plan_claims").select("id", { count: "exact", head: true }).eq("trip_id", trip.id).gte("created_at", hourAgo),
-    db.from("plan_claims").select("id", { count: "exact", head: true }).eq("plan_id", planId).eq("claimer_email", email).eq("status", "pending"),
+    db.from("plan_claims").select("id", { count: "exact", head: true }).eq("plan_id", planId).ilike("claimer_name", safeName).eq("status", "pending"),
   ]);
   if ((dup ?? 0) > 0) return { ok: false, error: "duplicate" };
-  if ((mine ?? 0) >= MAX_CLAIMS_PER_EMAIL_PER_DAY || (all ?? 0) >= MAX_CLAIMS_PER_TRIP_PER_HOUR) return { ok: false, error: "tooMany" };
+  if ((mine ?? 0) >= MAX_CLAIMS_PER_NAME_PER_DAY || (all ?? 0) >= MAX_CLAIMS_PER_TRIP_PER_HOUR) return { ok: false, error: "tooMany" };
 
   const { error } = await db.from("plan_claims").insert({
-    trip_id: trip.id, plan_id: planId, claimer_name: name, claimer_email: email, message: input.message.trim().slice(0, 1000) || null,
+    trip_id: trip.id, plan_id: planId, claimer_name: name, claimer_email: "", message: input.message.trim().slice(0, 1000) || null,
   });
   if (error) return { ok: false, error: "invalid" };
   await notifyOwner(db, trip, name, plan.title as string);

@@ -67,10 +67,15 @@ export async function decideClaim(tripId: string, claimId: string, _prev: Decide
   if (decision === "accept") {
     if (!plan.open_claim) return { error: "notPending" }; // someone else already got it
     let personId: string | null = null;
-    const { data: existing } = await supabase.from("people").select("id").eq("trip_id", tripId).ilike("email", claim.claimer_email).maybeSingle();
+    // Reuse a person already on the trip (by email when we have one, otherwise by exact name).
+    const email = (claim.claimer_email as string) || null;
+    const safeName = String(claim.claimer_name).replace(/[%_\\]/g, (c) => `\\${c}`);
+    const { data: existing } = email
+      ? await supabase.from("people").select("id").eq("trip_id", tripId).ilike("email", email).maybeSingle()
+      : await supabase.from("people").select("id").eq("trip_id", tripId).ilike("name", safeName).limit(1).maybeSingle();
     personId = existing?.id ?? null;
     if (!personId) {
-      const { data: created, error } = await supabase.from("people").insert({ trip_id: tripId, name: claim.claimer_name, email: claim.claimer_email, locale: loc }).select("id").single();
+      const { data: created, error } = await supabase.from("people").insert({ trip_id: tripId, name: claim.claimer_name, email, locale: loc }).select("id").single();
       if (error || !created) return { error: "failed" };
       personId = created.id;
     }
@@ -84,7 +89,7 @@ export async function decideClaim(tripId: string, claimId: string, _prev: Decide
     const { data: others } = await supabase.from("plan_claims").select("id,claimer_email").eq("plan_id", plan.id).eq("status", "pending").neq("id", claimId);
     if ((others ?? []).length) {
       await supabase.from("plan_claims").update({ status: "declined", decided_at: now }).in("id", (others ?? []).map((o) => o.id as string));
-      for (const o of others ?? []) {
+      for (const o of (others ?? []).filter((x) => x.claimer_email)) {
         await sendMail(o.claimer_email as string, zh ? `關於「${plan.title}」：${trip.title}` : `About "${plan.title}": ${trip.title}`,
           zh ? "這個行程已經有人認領了，謝謝你的興趣。" : "Someone else already joined this plan. Thanks for your interest.");
       }
@@ -96,7 +101,7 @@ export async function decideClaim(tripId: string, claimId: string, _prev: Decide
   }).eq("id", claimId);
   if (error) return { error: "failed" };
 
-  if (block) {
+  if (block && claim.claimer_email) {
     const next = [...new Set([...(trip.availability_blocked_emails ?? []), normalizeEmail(claim.claimer_email)])];
     await supabase.from("trips").update({ availability_blocked_emails: next }).eq("id", tripId);
   }
@@ -109,7 +114,7 @@ export async function decideClaim(tripId: string, claimId: string, _prev: Decide
     ? (zh ? `對方接受了你的認領：「${plan.title}」${when ? `，${when}（${trip.timezone}）` : "，時間確定後會再通知你"}。` : `Your request was accepted: "${plan.title}"${when ? `, ${when} (${trip.timezone})` : ". The time is not set yet; you'll hear when it is"}.`) + (reply ? `\n\n${reply}` : "") + ics
     : (zh ? "這次無法配合，謝謝你的興趣。" : "Thanks for asking — this time doesn't work out.") + (reply ? `\n\n${reply}` : "");
   // Best-effort: a mail failure must not undo the decision.
-  await sendMail(claim.claimer_email, subject, body);
+  if (claim.claimer_email) await sendMail(claim.claimer_email, subject, body);
 
   revalidatePath(`/t/${tripId}/requests`);
   revalidatePath(`/t/${tripId}`, "layout");

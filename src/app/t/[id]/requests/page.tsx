@@ -28,13 +28,14 @@ export default async function Requests({ params }: { params: Promise<{ id: strin
   await expireOldClaims(supabase, id);
   const [{ data: reqs, error: claimsErr }, { data: people }, { data: planRows, error: plansErr }] = await Promise.all([
     supabase.from("plan_claims").select("*").eq("trip_id", id).order("created_at", { ascending: false }).limit(100),
-    supabase.from("people").select("email").eq("trip_id", id),
+    supabase.from("people").select("email,name").eq("trip_id", id),
     supabase.from("plans").select("id,title,type,start_at,plan_date,duration_min,location_name,claim_proposal,open_claim").eq("trip_id", id),
   ]);
   const plans = (planRows ?? []) as OpenPlan[];
   const planById = new Map(plans.map((x) => [x.id, x]));
   const open = plans.filter((p) => p.open_claim).sort((a, b) => (a.start_at ? Date.parse(a.start_at) : Infinity) - (b.start_at ? Date.parse(b.start_at) : Infinity));
-  const known = new Set((people ?? []).map((p) => (p.email ?? "").toLowerCase()));
+  const knownEmails = new Set((people ?? []).map((p) => (p.email ?? "").toLowerCase()).filter(Boolean));
+  const knownNames = new Set((people ?? []).map((p) => (p.name ?? "").toLowerCase()));
   const fmt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short", timeZone: trip.timezone });
   const pending = (reqs ?? []).filter((r) => r.status === "pending");
   const past = (reqs ?? []).filter((r) => r.status !== "pending");
@@ -94,7 +95,7 @@ export default async function Requests({ params }: { params: Promise<{ id: strin
             <ClaimRow
               key={r.id} action={decideClaim.bind(null, id, r.id)} name={r.claimer_name} email={r.claimer_email}
               planTitle={planById.get(r.plan_id)?.title ?? "–"} when={fmt.format(new Date(r.created_at))}
-              message={r.message} knownPerson={known.has(r.claimer_email)}
+              message={r.message} knownPerson={r.claimer_email ? knownEmails.has(r.claimer_email) : knownNames.has(String(r.claimer_name).toLowerCase())}
             />
           ))}
         </section>

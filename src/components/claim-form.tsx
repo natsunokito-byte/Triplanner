@@ -17,7 +17,6 @@ export function ClaimForm({ action }: { action: (prev: ClaimState, fd: FormData)
   return (
     <form action={formAction} className="space-y-2 border-t border-border pt-3">
       <input name="name" className="input" required maxLength={80} placeholder={t("name")} aria-label={t("name")} autoComplete="name" />
-      <input name="email" type="email" className="input" required maxLength={254} placeholder={t("email")} aria-label={t("email")} autoComplete="email" />
       <textarea name="message" rows={2} maxLength={1000} className="input h-auto py-2" placeholder={t("message")} aria-label={t("message")} />
       {siteKey && (
         <>

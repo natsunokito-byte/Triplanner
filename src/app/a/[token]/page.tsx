@@ -1,11 +1,9 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { CalendarClock, MapPin } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
-import { ClaimForm } from "@/components/claim-form";
+import { ClaimList } from "@/components/claim-list";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CLAIM_TRIP_COLS, type ClaimTrip } from "@/lib/claims";
-import { submitClaim } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -53,19 +51,13 @@ export default async function ClaimPage({ params }: { params: Promise<{ token: s
           <p className="text-muted">{t("subtitle")}</p>
           <p className="text-xs text-muted">{t("tzNote", { tz: trip.timezone })}</p>
         </div>
-        {plans.length === 0 && <p className="card p-6 text-center text-muted">{t("none")}</p>}
-        {plans.map((p) => (
-          <section key={p.id} className="card space-y-2 p-4">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-lg font-semibold">{p.title}</h2>
-              <span className="rounded-full bg-surface-2 px-2 text-xs">{tp(`types.${p.type}`)}</span>
-            </div>
-            <div className="flex items-center gap-1 text-sm text-muted"><CalendarClock size={14} /> {when(p)}{p.start_at ? ` · ${p.duration_min} min` : ""}</div>
-            {p.location_name && <div className="flex items-center gap-1 text-sm text-muted"><MapPin size={14} /> {p.location_name}</div>}
-            {p.claim_proposal && <p className="whitespace-pre-line rounded-md bg-surface-2 p-2 text-sm">{p.claim_proposal}</p>}
-            <ClaimForm action={submitClaim.bind(null, token, p.id)} />
-          </section>
-        ))}
+        <ClaimList
+          token={token}
+          items={plans.map((p) => ({
+            id: p.id, title: p.title, type: p.type, typeLabel: tp(`types.${p.type}`), when: when(p),
+            duration: p.start_at ? `${p.duration_min} min` : "", location: p.location_name, proposal: p.claim_proposal,
+          }))}
+        />
       </main>
     </>
   );

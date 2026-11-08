@@ -15,7 +15,7 @@ export async function submitClaim(token: string, planId: string, _prev: ClaimSta
   const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim();
   if (!(await verifyTurnstile(String(fd.get("cf-turnstile-response") ?? "") || null, ip))) return { error: "captcha" };
   const r = await createClaim(admin, data as unknown as ClaimTrip, planId, {
-    name: String(fd.get("name") ?? ""), email: String(fd.get("email") ?? ""), message: String(fd.get("message") ?? ""),
+    name: String(fd.get("name") ?? ""), message: String(fd.get("message") ?? ""),
   });
   return r.ok ? { done: true } : { error: r.error };
 }
