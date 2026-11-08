@@ -514,7 +514,14 @@
     "openPlans": "開放認領中的行程",
     "noOpen": "還沒有開放認領的行程。編輯行程時勾選「開放認領」即可。",
     "pendingCount": "{n} 筆待處理",
-    "dbError": "讀取失敗：資料庫可能還沒執行 007_m18.sql。"
+    "dbError": "讀取失敗：資料庫可能還沒執行 007_m18.sql。",
+    "proposals": "行程提議",
+    "noProposals": "目前沒有待審核的提議。",
+    "proposes": "提議了一個行程",
+    "acceptProposal": "接受並建立行程",
+    "proposalAccepted": "已建立行程：{title}",
+    "openPlan": "查看行程",
+    "proposalHistory": "提議紀錄"
   },
   "todos": {
     "title": "任務",
@@ -575,6 +582,19 @@
     },
     "all": "全部",
     "filter": "類別",
-    "minutes": "{n} 分鐘"
+    "minutes": "{n} 分鐘",
+    "propose": "提議行程",
+    "proposeTitle": "提議一個行程",
+    "proposeType": "活動類別",
+    "proposeIdea": "想做什麼",
+    "proposeIdeaPh": "例如：一起去吃拉麵",
+    "proposeDate": "大概日期（選填）",
+    "proposeTime": "大概時間（選填）",
+    "proposeTimePh": "例如：週六下午",
+    "proposePlace": "大概地點（選填）",
+    "proposePlacePh": "例如：新宿",
+    "proposeNote": "補充說明（選填）",
+    "proposeSent": "已送出！對方審核後會安排。",
+    "close": "關閉"
   }
 }

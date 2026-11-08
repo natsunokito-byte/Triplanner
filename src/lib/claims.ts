@@ -1,6 +1,7 @@
 // Server-only helpers for the public "open claim" page: a visitor asks to join one of the owner's open plans.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendMail } from "./mail";
+import { REQUEST_TYPES } from "./plan-types";
 
 export const CLAIM_EXPIRY_DAYS = 14;
 const MAX_CLAIMS_PER_NAME_PER_DAY = 5;
@@ -49,7 +50,7 @@ export async function expireOldClaims(db: SupabaseClient, tripId: string) {
   await db.from("plan_claims").update({ status: "expired", decided_at: new Date().toISOString() }).eq("trip_id", tripId).eq("status", "pending").lt("created_at", cutoff);
 }
 
-async function notifyOwner(db: SupabaseClient, trip: ClaimTrip, name: string, planTitle: string) {
+async function notifyOwner(db: SupabaseClient, trip: ClaimTrip, name: string, planTitle: string, proposal = false) {
   try {
     const { data } = await db.auth.admin.getUserById(trip.owner_id);
     const to = data.user?.email;
@@ -58,9 +59,13 @@ async function notifyOwner(db: SupabaseClient, trip: ClaimTrip, name: string, pl
     const site = process.env.NEXT_PUBLIC_SITE_URL ?? "";
     await sendMail(
       to,
-      zh ? `${name} 想認領「${planTitle}」（${trip.title}）` : `${name} wants to join "${planTitle}" (${trip.title})`,
-      zh ? `${name} 想認領你的行程「${planTitle}」。\n到收件匣查看：${site}/t/${trip.id}/requests`
-         : `${name} would like to join your plan "${planTitle}".\nReview it here: ${site}/t/${trip.id}/requests`,
+      proposal
+        ? (zh ? `${name} 提議了行程「${planTitle}」（${trip.title}）` : `${name} proposed "${planTitle}" (${trip.title})`)
+        : (zh ? `${name} 想認領「${planTitle}」（${trip.title}）` : `${name} wants to join "${planTitle}" (${trip.title})`),
+      proposal
+        ? (zh ? `${name} 提議了行程「${planTitle}」。\n到行程認領頁查看：${site}/t/${trip.id}/requests` : `${name} proposed the plan "${planTitle}".\nReview it here: ${site}/t/${trip.id}/requests`)
+        : (zh ? `${name} 想認領你的行程「${planTitle}」。\n到收件匣查看：${site}/t/${trip.id}/requests`
+           : `${name} would like to join your plan "${planTitle}".\nReview it here: ${site}/t/${trip.id}/requests`),
     );
   } catch { /* notification is best-effort */ }
 }
@@ -78,4 +83,34 @@ export async function verifyTurnstile(token: string | null, ip?: string): Promis
   } catch {
     return false;
   }
+}
+
+export type ProposalInput = {
+  name: string; type: string; title: string; note: string; roughDate: string; roughTime: string; roughLocation: string;
+};
+
+/** A visitor suggests a plan (no email collected). The owner can later turn it into a real plan. */
+export async function createProposal(db: SupabaseClient, trip: ClaimTrip, input: ProposalInput): Promise<ClaimResult> {
+  const name = input.name.trim().slice(0, 80);
+  const title = input.title.trim().slice(0, 200);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(input.roughDate) ? input.roughDate : null;
+  if (!name || !title || !(REQUEST_TYPES as readonly string[]).includes(input.type)) return { ok: false, error: "invalid" };
+
+  const dayAgo = new Date(Date.now() - 86400000).toISOString();
+  const hourAgo = new Date(Date.now() - 3600000).toISOString();
+  const safeName = name.replace(/[%_\\]/g, (c) => `\\${c}`);
+  const [{ count: mine }, { count: all }] = await Promise.all([
+    db.from("plan_proposals").select("id", { count: "exact", head: true }).eq("trip_id", trip.id).ilike("proposer_name", safeName).gte("created_at", dayAgo),
+    db.from("plan_proposals").select("id", { count: "exact", head: true }).eq("trip_id", trip.id).gte("created_at", hourAgo),
+  ]);
+  if ((mine ?? 0) >= MAX_CLAIMS_PER_NAME_PER_DAY || (all ?? 0) >= MAX_CLAIMS_PER_TRIP_PER_HOUR) return { ok: false, error: "tooMany" };
+
+  const { error } = await db.from("plan_proposals").insert({
+    trip_id: trip.id, proposer_name: name, type: input.type, title,
+    note: input.note.trim().slice(0, 1000) || null, rough_date: date,
+    rough_time: input.roughTime.trim().slice(0, 80) || null, rough_location: input.roughLocation.trim().slice(0, 200) || null,
+  });
+  if (error) return { ok: false, error: "invalid" };
+  await notifyOwner(db, trip, name, title, true);
+  return { ok: true };
 }

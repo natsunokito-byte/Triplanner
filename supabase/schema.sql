@@ -230,6 +230,24 @@ create table plan_claims (
 create index on plan_claims (trip_id, status, created_at);
 create index on plan_claims (plan_id, status);
 
+-- Public proposals: a visitor suggests a plan; the owner can turn it into a real plan (M19). Written by server code only.
+create table plan_proposals (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references trips(id) on delete cascade,
+  proposer_name text not null,
+  type text not null,
+  title text not null,
+  note text,
+  rough_date date,
+  rough_time text,
+  rough_location text,
+  status text not null default 'pending' check (status in ('pending','accepted','declined','expired')),
+  plan_id uuid references plans(id) on delete set null,
+  created_at timestamptz default now(),
+  decided_at timestamptz
+);
+create index on plan_proposals (trip_id, status, created_at);
+
 -- (legacy, unused since M18) Requests from verified viewers to hang out. Accepting creates a plan (plans.id stored in plan_id).
 create table plan_requests (
   id uuid primary key default gen_random_uuid(),
@@ -275,7 +293,7 @@ create table fx_rates (
 do $$
 declare t text;
 begin
-  foreach t in array array['trips','people','hotels','plans','plan_people','plan_photos','commutes','todos','todo_categories','plan_cost_items','commute_stops','viewer_sessions','viewer_otps','fx_rates','availability_blocks','plan_requests','plan_claims']
+  foreach t in array array['trips','people','hotels','plans','plan_people','plan_photos','commutes','todos','todo_categories','plan_cost_items','commute_stops','viewer_sessions','viewer_otps','fx_rates','availability_blocks','plan_requests','plan_claims','plan_proposals']
   loop
     execute format('alter table %I enable row level security', t);
   end loop;
@@ -299,6 +317,7 @@ create policy fx_rates_read on fx_rates for select using (auth.role() = 'authent
 -- viewer_otps: no policies => only service role can touch it.
 create policy availability_blocks_owner on availability_blocks for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
 create policy plan_claims_owner on plan_claims for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
+create policy plan_proposals_owner on plan_proposals for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
 create policy plan_requests_owner on plan_requests for all using (exists (select 1 from trips x where x.id = trip_id and x.owner_id = auth.uid()));
 -- Viewers create/read their own requests only through server routes (service role).
 

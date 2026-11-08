@@ -120,3 +120,49 @@ export async function decideClaim(tripId: string, claimId: string, _prev: Decide
   revalidatePath(`/t/${tripId}`, "layout");
   return {};
 }
+
+export type ProposalState = { error?: "failed" | "notPending"; planId?: string };
+
+/** Accept turns the proposal into a real plan (proposer added as a participant); decline just closes it. */
+export async function decideProposal(tripId: string, proposalId: string, _prev: ProposalState, fd: FormData): Promise<ProposalState> {
+  const { supabase } = await requireUser();
+  const accept = fd.get("decision") === "accept";
+  const { data: p } = await supabase.from("plan_proposals").select("*").eq("id", proposalId).eq("trip_id", tripId).single();
+  if (!p) return { error: "failed" };
+  if (p.status !== "pending") return { error: "notPending" };
+  const now = new Date().toISOString();
+
+  if (!accept) {
+    const { error } = await supabase.from("plan_proposals").update({ status: "declined", decided_at: now }).eq("id", proposalId);
+    if (error) return { error: "failed" };
+    revalidatePath(`/t/${tripId}/requests`);
+    return {};
+  }
+
+  const { data: trip } = await supabase.from("trips").select("invite_locale").eq("id", tripId).single();
+  const zh = (trip?.invite_locale ?? "zh-TW") !== "en";
+  const noteLines = [
+    zh ? `提議者：${p.proposer_name}` : `Proposed by: ${p.proposer_name}`,
+    p.rough_time ? (zh ? `大概時間：${p.rough_time}` : `Rough time: ${p.rough_time}`) : null,
+    p.note,
+  ].filter(Boolean);
+  const { data: plan, error: e1 } = await supabase.from("plans").insert({
+    trip_id: tripId, type: p.type, title: p.title, location_name: p.rough_location,
+    plan_date: p.rough_date, note: noteLines.join("\n"), visibility: "normal",
+  }).select("id").single();
+  if (e1 || !plan) return { error: "failed" };
+
+  const safeName = String(p.proposer_name).replace(/[%_\\]/g, (c) => `\\${c}`);
+  const { data: existing } = await supabase.from("people").select("id").eq("trip_id", tripId).ilike("name", safeName).limit(1).maybeSingle();
+  let personId: string | null = existing?.id ?? null;
+  if (!personId) {
+    const { data: created } = await supabase.from("people").insert({ trip_id: tripId, name: p.proposer_name, email: null, locale: zh ? "zh-TW" : "en" }).select("id").single();
+    personId = created?.id ?? null;
+  }
+  if (personId) await supabase.from("plan_people").insert({ plan_id: plan.id, person_id: personId });
+
+  const { error: e2 } = await supabase.from("plan_proposals").update({ status: "accepted", plan_id: plan.id, decided_at: now }).eq("id", proposalId);
+  if (e2) return { error: "failed" };
+  revalidatePath(`/t/${tripId}`, "layout");
+  return { planId: plan.id };
+}

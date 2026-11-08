@@ -4,9 +4,10 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowLeft, CalendarClock, MapPin } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { ClaimRow } from "@/components/claim-row";
+import { ProposalRow } from "@/components/proposal-row";
 import { CopyButton } from "@/components/copy-button";
 import { createClient } from "@/lib/supabase/server";
-import { decideClaim, regenerateAvailabilityToken, setClaimPageEnabled } from "@/app/availability-actions";
+import { decideClaim, decideProposal, regenerateAvailabilityToken, setClaimPageEnabled } from "@/app/availability-actions";
 import { expireOldClaims } from "@/lib/claims";
 
 type OpenPlan = {
@@ -27,11 +28,16 @@ export default async function Requests({ params }: { params: Promise<{ id: strin
   if (!tripRow || !auth.user || (tripRow as { owner_id: string }).owner_id !== auth.user.id) notFound();
   const trip = tripRow as unknown as { id: string; title: string; timezone: string; availability_enabled: boolean; availability_public: boolean; availability_token: string };
   await expireOldClaims(supabase, id);
-  const [{ data: reqs, error: claimsErr }, { data: people }, { data: planRows, error: plansErr }] = await Promise.all([
+  const [{ data: reqs, error: claimsErr }, { data: people }, { data: planRows, error: plansErr }, { data: propRows }] = await Promise.all([
     supabase.from("plan_claims").select("*").eq("trip_id", id).order("created_at", { ascending: false }).limit(100),
     supabase.from("people").select("email,name").eq("trip_id", id),
     supabase.from("plans").select("id,title,type,start_at,plan_date,duration_min,location_name,claim_proposal,open_claim").eq("trip_id", id),
+    supabase.from("plan_proposals").select("*").eq("trip_id", id).order("created_at", { ascending: false }).limit(100),
   ]);
+  const props = (propRows ?? []) as { id: string; proposer_name: string; type: string; title: string; note: string | null; rough_date: string | null; rough_time: string | null; rough_location: string | null; status: string; plan_id: string | null; created_at: string }[];
+  const pendingProps = props.filter((x) => x.status === "pending");
+  const pastProps = props.filter((x) => x.status !== "pending");
+  const dateOnly = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeZone: "UTC" });
   const plans = (planRows ?? []) as OpenPlan[];
   const planById = new Map(plans.map((x) => [x.id, x]));
   const open = plans.filter((p) => p.open_claim).sort((a, b) => (a.start_at ? Date.parse(a.start_at) : Infinity) - (b.start_at ? Date.parse(b.start_at) : Infinity));
@@ -90,6 +96,18 @@ export default async function Requests({ params }: { params: Promise<{ id: strin
         </section>
 
         <section className="space-y-3">
+          <h2 className="font-semibold">{t("proposals")} ({pendingProps.length})</h2>
+          {pendingProps.length === 0 && <p className="card p-6 text-center text-muted">{t("noProposals")}</p>}
+          {pendingProps.map((x) => (
+            <ProposalRow
+              key={x.id} action={decideProposal.bind(null, id, x.id)} tripId={id} name={x.proposer_name} typeLabel={tp(`types.${x.type}`)}
+              title={x.title} when={x.rough_date ? dateOnly.format(new Date(`${x.rough_date}T12:00:00Z`)) : null} roughTime={x.rough_time}
+              location={x.rough_location} note={x.note} created={fmt.format(new Date(x.created_at))}
+            />
+          ))}
+        </section>
+
+        <section className="space-y-3">
           <h2 className="font-semibold">{t("pending")} ({pending.length})</h2>
           {pending.length === 0 && <p className="card p-6 text-center text-muted">{t("none")}</p>}
           {pending.map((r) => (
@@ -100,6 +118,22 @@ export default async function Requests({ params }: { params: Promise<{ id: strin
             />
           ))}
         </section>
+        {pastProps.length > 0 && (
+          <section className="space-y-2">
+            <h2 className="font-semibold">{t("proposalHistory")}</h2>
+            <ul className="space-y-2">
+              {pastProps.map((x) => (
+                <li key={x.id} className="card flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
+                  <span>{x.proposer_name} · {x.title}</span>
+                  <span className="flex items-center gap-3 text-xs text-muted">
+                    {x.plan_id && <Link href={`/t/${id}/plans/${x.plan_id}`} className="text-primary hover:underline">{t("openPlan")}</Link>}
+                    {t(`status.${x.status}`)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {past.length > 0 && (
           <section className="space-y-2">
             <h2 className="font-semibold">{t("history")}</h2>

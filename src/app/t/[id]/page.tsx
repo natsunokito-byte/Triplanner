@@ -27,7 +27,11 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
   if (!data) notFound();
   const trip = data as Trip;
   await touchTrip(id);
-  const { count: pendingCount } = await supabase.from("plan_claims").select("id", { count: "exact", head: true }).eq("trip_id", id).eq("status", "pending");
+  const [{ count: claimCount }, { count: proposalCount }] = await Promise.all([
+    supabase.from("plan_claims").select("id", { count: "exact", head: true }).eq("trip_id", id).eq("status", "pending"),
+    supabase.from("plan_proposals").select("id", { count: "exact", head: true }).eq("trip_id", id).eq("status", "pending"),
+  ]);
+  const pendingCount = (claimCount ?? 0) + (proposalCount ?? 0);
   const tr = await getTranslations("requests");
   const { data: hotelRows } = await supabase.from("hotels").select("*").eq("trip_id", id).order("check_in");
   const hotels = (hotelRows ?? []) as Hotel[];

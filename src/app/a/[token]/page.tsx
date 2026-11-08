@@ -2,7 +2,10 @@ import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { AppHeader } from "@/components/app-header";
 import { ClaimList } from "@/components/claim-list";
+import { ProposeModal } from "@/components/propose-modal";
+import { REQUEST_TYPES } from "@/lib/plan-types";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { submitProposal } from "./actions";
 import { CLAIM_TRIP_COLS, type ClaimTrip } from "@/lib/claims";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +54,9 @@ export default async function ClaimPage({ params }: { params: Promise<{ token: s
           <h1 className="text-[28px] font-semibold leading-tight">{t("title", { trip: trip.title })}</h1>
           <p className="text-muted">{t("subtitle")}</p>
           <p className="text-xs text-muted">{t("tzNote", { tz: trip.timezone })}</p>
+          <div className="pt-3">
+            <ProposeModal action={submitProposal.bind(null, token)} types={REQUEST_TYPES.map((k) => ({ value: k, label: tp(`types.${k}`) }))} />
+          </div>
         </div>
         <ClaimList
           token={token}

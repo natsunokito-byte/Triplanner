@@ -514,7 +514,14 @@
     "openPlans": "Plans open for claims",
     "noOpen": "No plans are open yet. Tick Open for claims when editing a plan.",
     "pendingCount": "{n} pending",
-    "dbError": "Couldn't load: the database may not have run 007_m18.sql yet."
+    "dbError": "Couldn't load: the database may not have run 007_m18.sql yet.",
+    "proposals": "Proposals",
+    "noProposals": "No proposals to review.",
+    "proposes": "proposed a plan",
+    "acceptProposal": "Accept and create plan",
+    "proposalAccepted": "Plan created: {title}",
+    "openPlan": "Open plan",
+    "proposalHistory": "Proposal history"
   },
   "todos": {
     "title": "Tasks",
@@ -575,6 +582,19 @@
     },
     "all": "All",
     "filter": "Category",
-    "minutes": "{n} min"
+    "minutes": "{n} min",
+    "propose": "Propose a plan",
+    "proposeTitle": "Propose a plan",
+    "proposeType": "Category",
+    "proposeIdea": "What would you like to do",
+    "proposeIdeaPh": "e.g. Ramen together",
+    "proposeDate": "Rough date (optional)",
+    "proposeTime": "Rough time (optional)",
+    "proposeTimePh": "e.g. Saturday afternoon",
+    "proposePlace": "Rough place (optional)",
+    "proposePlacePh": "e.g. Shinjuku",
+    "proposeNote": "Notes (optional)",
+    "proposeSent": "Sent! The owner will review it.",
+    "close": "Close"
   }
 }

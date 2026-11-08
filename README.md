@@ -58,3 +58,6 @@ Next.js 16 + Supabase. 規格見 `SPEC.md`，設計系統見 `DESIGN.md`。
 需要兩把 key：
 - `GOOGLE_MAPS_SERVER_KEY`：後端呼叫 Routes API，只啟用 Routes API，並設 API restriction。
 - `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY`：瀏覽器端 Places Autocomplete (New)，只啟用 Places API (New)，並設 HTTP referrer 限制。
+
+## M19 提議行程
+公開認領頁新增「提議行程」按鈕（名字、活動類別、想做什麼、大概日期/時間/地點、補充）。提議存入 `plan_proposals`，在「行程認領」頁的「行程提議」區審核；接受會直接建立行程並把提議者加為參與者。需執行 `supabase/migrations/008_m19.sql`。
