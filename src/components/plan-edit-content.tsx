@@ -11,6 +11,7 @@ import { addPlanTodo, deletePlan, duplicatePlan, deletePlanTodo, setPlanComplete
 import { headers } from "next/headers";
 import { hhmm } from "@/lib/schedule";
 import { DrawerShell, DrawerDeleteButton } from "@/components/drawer-shell";
+import { TASK_TODO_TYPES } from "@/lib/plan-types";
 import { fmtMoney } from "@/lib/money";
 import { utcToLocal } from "@/lib/tz";
 import type { Person, Plan, Todo, Trip } from "@/lib/types";
@@ -27,7 +28,7 @@ export async function EditPlanContent({ id, planId, back, intercepted }: { id: s
     supabase.from("plans").select("*").eq("id", planId).eq("trip_id", id).maybeSingle(),
     supabase.from("people").select("*").eq("trip_id", id).order("is_me", { ascending: false }).order("name"),
     supabase.from("plan_people").select("person_id").eq("plan_id", planId),
-    supabase.from("todos").select("*").eq("plan_id", planId).eq("category", "cosplay").order("done").order("title"),
+    supabase.from("todos").select("*").eq("plan_id", planId).order("done").order("sort", { nullsFirst: false }).order("title"),
     supabase.from("plan_photos").select("id,storage_path").eq("plan_id", planId).order("created_at"),
     supabase.from("plan_cost_items").select("label,amount,per_hour").eq("plan_id", planId).order("position"),
     supabase.from("todo_categories").select("id,name").eq("trip_id", id).order("position"),
@@ -35,7 +36,9 @@ export async function EditPlanContent({ id, planId, back, intercepted }: { id: s
   if (!tripRow || !planRow) notFound();
   const trip = tripRow as Trip;
   const plan = planRow as Plan;
-  const todos = (todoRows ?? []) as Todo[];
+  const allTodos = (todoRows ?? []) as Todo[];
+  const todos = allTodos.filter((x) => x.category === "cosplay"); // cosplay checklist
+  const planTodos = allTodos.filter((x) => x.category !== "cosplay"); // to-dos added with the plan
   const photoList = (photoRows ?? []) as { id: string; storage_path: string }[];
   const signed = photoList.length
     ? (await supabase.storage.from("trip-photos").createSignedUrls(photoList.map((p) => p.storage_path), 3600)).data ?? []
@@ -110,6 +113,29 @@ export async function EditPlanContent({ id, planId, back, intercepted }: { id: s
           <InvitePanel plan={{ ...plan, start_at: plan.start_at }} tz={trip.timezone} tripTitle={trip.title} defaultLocale={trip.invite_locale} icsUrl={`${origin}/api/ics/${plan.ics_token}`} recipients={recipients} />
         ) : (
           <p className="text-xs text-muted">{plan.start_at ? ti("privateNote") : t("undatedNote")}</p>
+        )}
+
+        {planTodos.length > 0 && (
+          <section className="card p-5 space-y-3">
+            <h2 className="font-semibold">{TASK_TODO_TYPES.includes(plan.type) ? t("taskTodos") : t("planTodos")}</h2>
+            <ul className="space-y-1">
+              {planTodos.map((todo) => (
+                <li key={todo.id} className="flex items-center gap-2">
+                  <form action={togglePlanTodo.bind(null, id, planId, todo.id, !todo.done)}>
+                    <button className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2" aria-label={todo.done ? "undo" : "done"}>
+                      {todo.done ? <Check size={18} className="text-success" /> : <Circle size={18} className="text-muted" />}
+                    </button>
+                  </form>
+                  <span className={`flex-1 ${todo.done ? "text-muted line-through" : ""}`}>{todo.title}</span>
+                  <form action={deletePlanTodo.bind(null, id, planId, todo.id)}>
+                    <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={c("delete")}>
+                      <Trash2 size={14} />
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {plan.type === "cosplay_photoshoot" && (

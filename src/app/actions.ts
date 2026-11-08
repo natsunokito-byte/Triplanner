@@ -611,21 +611,21 @@ export async function addPlanTodo(tripId: string, planId: string, fd: FormData) 
   const title = z.string().trim().min(1).max(200).parse(fd.get("title"));
   const { error } = await supabase.from("todos").insert({ trip_id: tripId, plan_id: planId, category: "cosplay", title });
   if (error) throw new Error(error.message);
-  revalidatePath(`/t/${tripId}/plans/${planId}`);
+  revalidatePath(`/t/${tripId}`, "layout");
 }
 
 export async function togglePlanTodo(tripId: string, planId: string, todoId: string, done: boolean) {
   const { supabase } = await requireUser();
   const { error } = await supabase.from("todos").update({ done }).eq("id", todoId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
-  revalidatePath(`/t/${tripId}/plans/${planId}`);
+  revalidatePath(`/t/${tripId}`, "layout");
 }
 
 export async function deletePlanTodo(tripId: string, planId: string, todoId: string) {
   const { supabase } = await requireUser();
   const { error } = await supabase.from("todos").delete().eq("id", todoId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
-  revalidatePath(`/t/${tripId}/plans/${planId}`);
+  revalidatePath(`/t/${tripId}`, "layout");
 }
 
 // ───────────────────────── Commutes (M4) ─────────────────────────
