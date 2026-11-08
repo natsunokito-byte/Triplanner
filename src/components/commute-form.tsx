@@ -65,7 +65,7 @@ export function CommuteForm({
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
           const key = json.error === "not_configured" ? "errNotConfigured" : json.error === "no_route" ? "errNoRoute" : json.error === "rate_limited" ? "errRate" : "errGeneric";
-          return setMsg({ kind: "err", text: t(key) });
+          return setMsg({ kind: "err", text: json.detail ? `${t(key)} (${json.upstream_status ?? ""} ${json.detail})` : t(key) });
         }
         minutes += json.duration_min ?? 0;
         meters += json.distance_m ?? 0;

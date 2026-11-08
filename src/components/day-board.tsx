@@ -242,7 +242,13 @@ export function DayBoard({
               </div>
 
               <ul className="flex flex-1 flex-col gap-2 p-2">
-                <li className="flex flex-wrap items-center justify-center gap-2">
+                <li className="flex flex-col items-center justify-center gap-2">
+                  <WakeUpButton
+                    key={`${d}-${wakes[0]?.start_at ?? "none"}`}
+                    tripId={tripId}
+                    date={d}
+                    current={wakes[0] ? { id: wakes[0].id, time: hm.format(Date.parse(wakes[0].start_at!)) } : null}
+                  />
                   {list[0] && (
                     <span className="[&>a]:!mx-0 [&>a]:!mt-0">
                       {pill(
@@ -252,12 +258,6 @@ export function DayBoard({
                       )}
                     </span>
                   )}
-                  <WakeUpButton
-                    key={`${d}-${wakes[0]?.start_at ?? "none"}`}
-                    tripId={tripId}
-                    date={d}
-                    current={wakes[0] ? { id: wakes[0].id, time: hm.format(Date.parse(wakes[0].start_at!)) } : null}
-                  />
                 </li>
                 {dayPlans.filter((p) => p.type !== "wake_up").length === 0 && <li className="py-6 text-center text-xs text-muted">{t("dayEmpty")}</li>}
                 {list.map((p, idx) => {

@@ -68,8 +68,14 @@ export async function POST(req: Request) {
   });
 
   if (!res.ok) {
-    console.error("routes api error", res.status, await res.text().catch(() => ""));
-    return NextResponse.json({ error: "upstream" }, { status: 502 });
+    const text = await res.text().catch(() => "");
+    console.error("routes api error", res.status, text);
+    let detail = "";
+    try {
+      const e = (JSON.parse(text) as { error?: { status?: string; message?: string } }).error;
+      detail = [e?.status, e?.message].filter(Boolean).join(": ").slice(0, 300);
+    } catch {}
+    return NextResponse.json({ error: "upstream", upstream_status: res.status, detail }, { status: 502 });
   }
   const json = (await res.json()) as { routes?: { duration?: string; distanceMeters?: number }[] };
   const route = json.routes?.[0];
