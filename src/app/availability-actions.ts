@@ -21,6 +21,15 @@ export async function regenerateAvailabilityToken(id: string) {
   revalidatePath(`/t/${id}/settings`);
 }
 
+/** Turn the public claim page on/off (enabled + public always move together). */
+export async function setClaimPageEnabled(id: string, enabled: boolean) {
+  const { supabase } = await requireUser();
+  const { error } = await supabase.from("trips").update({ availability_enabled: enabled, availability_public: enabled }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/t/${id}/requests`);
+  revalidatePath(`/t/${id}/settings`);
+}
+
 export async function unblockEmail(id: string, email: string) {
   const { supabase } = await requireUser();
   const { data } = await supabase.from("trips").select("availability_blocked_emails").eq("id", id).single();

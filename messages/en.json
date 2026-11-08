@@ -65,8 +65,8 @@
     "seeCosts": "Full-access viewers can see costs",
     "hint": "Invitees must verify their email and only see plans they're part of.",
     "avail": {
-      "title": "Open-claim page",
-      "enabled": "Turn on the open-claim page (anyone with the link sees your open plans and can ask to join)",
+      "title": "Plan-claim page",
+      "enabled": "Turn on the plan-claim page (anyone with the link sees only the plans you opened for claims and can ask to join)",
       "public": "Public free-time link (no verification to view; email is verified when sending a request)",
       "link": "Claim link",
       "regenerate": "Regenerate link",
@@ -480,7 +480,7 @@
     "tab": "Make a plan"
   },
   "requests": {
-    "title": "Claims",
+    "title": "Plan claims",
     "back": "Back",
     "pending": "Pending",
     "none": "No pending claims.",
@@ -503,8 +503,18 @@
       "cancelled": "Cancelled",
       "pending": "Pending"
     },
-    "badge": "Claims",
-    "claimed": "wants to join: {plan}"
+    "badge": "Plan claims",
+    "claimed": "wants to join: {plan}",
+    "publicPage": "Public page",
+    "publicHint": "Only this page is public: anyone with the link sees just the plans you opened for claims, nothing else (no other plans, costs or notes).",
+    "turnOn": "Turn on the claim page",
+    "turnOff": "Turn off",
+    "preview": "Open preview",
+    "regenerate": "Regenerate link",
+    "openPlans": "Plans open for claims",
+    "noOpen": "No plans are open yet. Tick Open for claims when editing a plan.",
+    "pendingCount": "{n} pending",
+    "dbError": "Couldn't load: the database may not have run 007_m18.sql yet."
   },
   "todos": {
     "title": "To-dos",
@@ -538,7 +548,7 @@
     "addTask": "Add a task to-do"
   },
   "claim": {
-    "title": "{trip}: open plans",
+    "title": "{trip}: plan claims",
     "subtitle": "These plans are open to join. Pick one, leave your name and email, and you'll get an email once it's confirmed.",
     "tzNote": "Times are in the trip's local time ({tz}).",
     "none": "No plans are open right now.",
