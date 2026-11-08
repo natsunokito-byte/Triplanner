@@ -222,7 +222,7 @@
     "photographer": "攝影師",
     "photographerFee": "攝影師費用",
     "studioFee": "攝影棚費用",
-    "planTodos": "待辦事項",
+    "planTodos": "任務",
     "planTodoPh": "例如：預約、買票、準備道具",
     "todoCategory": "待辦分類",
     "catPlan": "行程",
@@ -517,17 +517,17 @@
     "dbError": "讀取失敗：資料庫可能還沒執行 007_m18.sql。"
   },
   "todos": {
-    "title": "待辦事項",
+    "title": "任務",
     "open": "未完成",
     "done": "已完成",
     "all": "全部",
-    "emptyOpen": "沒有未完成的待辦，太棒了！",
+    "emptyOpen": "沒有未完成的任務，太棒了！",
     "emptyDone": "還沒有已完成的待辦。",
     "reopen": "改回未完成",
     "complete": "標記完成",
     "due": "到期 {d}",
     "move": "移動",
-    "add": "新增待辦",
+    "add": "新增任務",
     "titlePh": "例如：預約攝影棚、換日幣",
     "category": "分類",
     "dueLabel": "到期日（選填）",
@@ -545,7 +545,9 @@
     "groupBy": "分組",
     "byDate": "日期",
     "byCategory": "分類",
-    "addTask": "新增任務待辦"
+    "addTask": "新增任務待辦",
+    "setDue": "設定日期",
+    "clearDue": "清除日期"
   },
   "claim": {
     "title": "{trip}：行程認領",

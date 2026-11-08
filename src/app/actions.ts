@@ -902,6 +902,16 @@ export async function toggleTodoItem(tripId: string, todoId: string, done: boole
   revalidatePath(`/t/${tripId}/dashboard`);
 }
 
+/** Set or clear a to-do's due date (calendar picker on the task row). */
+export async function setTodoDue(tripId: string, todoId: string, fd: FormData) {
+  const { supabase } = await requireUser();
+  const due = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().parse(String(fd.get("due") ?? "") || null);
+  const { error } = await supabase.from("todos").update({ due_date: due }).eq("id", todoId).eq("trip_id", tripId);
+  if (error) throw new Error(error.message);
+  revalidatePath(todoPath(tripId));
+  revalidatePath(`/t/${tripId}`, "layout");
+}
+
 /** Move any todo into a custom category ("b:" prefix = back to its built-in one). */
 export async function moveTodoItem(tripId: string, todoId: string, fd: FormData) {
   const { supabase } = await requireUser();

@@ -222,7 +222,7 @@
     "photographer": "Photographer",
     "photographerFee": "Photographer fee",
     "studioFee": "Studio fee",
-    "planTodos": "To-dos",
+    "planTodos": "Tasks",
     "planTodoPh": "e.g. book, buy tickets, prepare props",
     "todoCategory": "To-do category",
     "catPlan": "Plan",
@@ -517,17 +517,17 @@
     "dbError": "Couldn't load: the database may not have run 007_m18.sql yet."
   },
   "todos": {
-    "title": "To-dos",
+    "title": "Tasks",
     "open": "Open",
     "done": "Done",
     "all": "All",
-    "emptyOpen": "Nothing left to do — nice!",
+    "emptyOpen": "No open tasks. Nice!",
     "emptyDone": "Nothing completed yet.",
     "reopen": "Mark as open",
     "complete": "Mark done",
     "due": "due {d}",
     "move": "Move",
-    "add": "Add a to-do",
+    "add": "Add a task",
     "titlePh": "e.g. book the studio, exchange cash",
     "category": "Category",
     "dueLabel": "Due date (optional)",
@@ -545,7 +545,9 @@
     "groupBy": "Group by",
     "byDate": "Date",
     "byCategory": "Category",
-    "addTask": "Add a task to-do"
+    "addTask": "Add a task to-do",
+    "setDue": "Set date",
+    "clearDue": "Clear date"
   },
   "claim": {
     "title": "{trip}: plan claims",
