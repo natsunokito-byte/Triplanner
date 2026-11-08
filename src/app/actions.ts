@@ -249,7 +249,7 @@ export async function createHotel(tripId: string, fd: FormData) {
   const { data, error } = await supabase.from("hotels").insert({ ...v, trip_id: tripId }).select("id,name,booking_status").single();
   if (error) throw new Error(error.message);
   await syncHotelTodo(supabase, tripId, data);
-  revalidatePath(`/t/${tripId}`);
+  revalidatePath(`/t/${tripId}`, "layout");
   redirect(`/t/${tripId}`);
 }
 
@@ -265,7 +265,7 @@ export async function updateHotel(tripId: string, hotelId: string, fd: FormData)
     .single();
   if (error) throw new Error(error.message);
   await syncHotelTodo(supabase, tripId, data);
-  revalidatePath(`/t/${tripId}`);
+  revalidatePath(`/t/${tripId}`, "layout");
   redirect(`/t/${tripId}`);
 }
 
@@ -273,7 +273,7 @@ export async function deleteHotel(tripId: string, hotelId: string) {
   const { supabase } = await requireUser();
   const { error } = await supabase.from("hotels").delete().eq("id", hotelId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
-  revalidatePath(`/t/${tripId}`);
+  revalidatePath(`/t/${tripId}`, "layout");
   redirect(`/t/${tripId}`);
 }
 
@@ -344,15 +344,18 @@ async function parsePlan(supabase: Awaited<ReturnType<typeof createClient>>, tri
       return [];
     }
   };
+  const tp = await getTranslations("plan");
+  const isWake = fd.get("type") === "wake_up";
   const v = planSchema.parse({
     type: fd.get("type"),
-    title: fd.get("title"),
+    // A wake-up alarm only records a time; the title defaults to "Wake up".
+    title: String(fd.get("title") ?? "").trim() || (isWake ? tp("types.wake_up") : ""),
     location_name: String(fd.get("location_name") ?? ""),
     location_address: String(fd.get("location_address") ?? ""),
     date: String(fd.get("date") ?? "") || null,
     time: String(fd.get("time") ?? "") || null,
-    duration_min: fd.get("duration_min"),
-    cost_items: jsonField("cost_items"),
+    duration_min: isWake ? 30 : fd.get("duration_min"),
+    cost_items: isWake ? [] : jsonField("cost_items"),
     photographer_name: String(fd.get("photographer_name") ?? ""),
     studio_name: String(fd.get("studio_name") ?? ""),
     photographer_fee: String(fd.get("photographer_fee") ?? ""),
@@ -369,6 +372,10 @@ async function parsePlan(supabase: Awaited<ReturnType<typeof createClient>>, tri
   const { date, time, people, cost_items, new_todos, ...rest } = v;
   const sameCur = !rest.cost_currency || rest.cost_currency === trip.currency;
   const isCosplay = rest.type === "cosplay_photoshoot";
+  if (rest.type === "wake_up") {
+    if (!time) throw new Error("wake-up time required");
+    Object.assign(rest, { location_name: null, location_address: null, link: null, cost_currency: null, fx_rate_to_trip: null });
+  }
   const photographer_fee = isCosplay ? rest.photographer_fee : null;
   const studio_fee = isCosplay ? rest.studio_fee : null;
   return {
@@ -416,14 +423,15 @@ async function insertPlanTodos(
   tripId: string,
   planId: string,
   list: { title: string; cat: string }[],
+  planType: string,
 ) {
   if (list.length === 0) return;
   const { data: cats } = await supabase.from("todo_categories").select("id").eq("trip_id", tripId);
   const valid = new Set((cats ?? []).map((c) => c.id as string));
   const rows = list.map((x, i) => {
     const custom = x.cat.startsWith("c:") && valid.has(x.cat.slice(2)) ? x.cat.slice(2) : null;
-    const b = x.cat.slice(2);
-    const category = custom ? "general" : x.cat.startsWith("b:") && ["plan", "cosplay", "general"].includes(b) ? b : "plan";
+    // Uncategorised ("b:auto"): internal category only — cosplay checklist items stay in the plan's checklist.
+    const category = custom ? "general" : planType === "cosplay_photoshoot" ? "cosplay" : "plan";
     return { trip_id: tripId, plan_id: planId, title: x.title, category, category_id: custom, sort: i };
   });
   const { error } = await supabase.from("todos").insert(rows);
@@ -436,9 +444,10 @@ export async function createPlan(tripId: string, fd: FormData) {
   const { data, error } = await supabase.from("plans").insert({ ...values, trip_id: tripId }).select("id").single();
   if (error) throw new Error(error.message);
   await saveCostItems(supabase, data.id, items);
-  await insertPlanTodos(supabase, tripId, data.id, newTodos);
+  await insertPlanTodos(supabase, tripId, data.id, newTodos, values.type);
   await syncPlanPeople(supabase, tripId, data.id, personIds);
-  revalidatePath(`/t/${tripId}`);
+  revalidatePath(`/t/${tripId}`, "layout");
+  if (fd.get("back") === "close") return; // drawer: the client closes it
   redirect(safeBack(tripId, fd.get("back"), `/t/${tripId}`));
 }
 
@@ -448,10 +457,11 @@ export async function updatePlan(tripId: string, planId: string, fd: FormData) {
   const { error } = await supabase.from("plans").update(values).eq("id", planId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
   await saveCostItems(supabase, planId, items);
-  await insertPlanTodos(supabase, tripId, planId, newTodos);
+  await insertPlanTodos(supabase, tripId, planId, newTodos, values.type);
   await freezePlanRate(supabase, tripId, planId); // currency may have changed on an already-completed plan
   await syncPlanPeople(supabase, tripId, planId, personIds);
-  revalidatePath(`/t/${tripId}`);
+  revalidatePath(`/t/${tripId}`, "layout");
+  if (fd.get("back") === "close") return; // drawer: the client closes it
   redirect(safeBack(tripId, fd.get("back"), `/t/${tripId}`));
 }
 
@@ -490,7 +500,7 @@ async function clonePlan(
 export async function duplicatePlan(tripId: string, planId: string) {
   const { supabase } = await requireUser();
   const { id } = await clonePlan(supabase, tripId, planId);
-  revalidatePath(`/t/${tripId}`);
+  revalidatePath(`/t/${tripId}`, "layout");
   redirect(`/t/${tripId}/plans/${id}`);
 }
 
@@ -505,7 +515,7 @@ export async function duplicatePlanToSameDay(tripId: string, planId: string) {
   const day = src.start_at ? localDate(src.start_at, trip.timezone) : (src.plan_date as string | null);
   if (!day) throw new Error("plan has no date");
   await clonePlan(supabase, tripId, planId, { start_at: null, plan_date: day, plan_time: null });
-  revalidatePath(`/t/${tripId}`);
+  revalidatePath(`/t/${tripId}`, "layout");
 }
 
 export async function deletePlan(tripId: string, planId: string, back?: unknown) {
@@ -513,7 +523,8 @@ export async function deletePlan(tripId: string, planId: string, back?: unknown)
   await purgePhotos(supabase, [planId]);
   const { error } = await supabase.from("plans").delete().eq("id", planId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
-  revalidatePath(`/t/${tripId}`);
+  revalidatePath(`/t/${tripId}`, "layout");
+  if (back === "close") return; // drawer: the client closes it
   redirect(safeBack(tripId, back, `/t/${tripId}`));
 }
 
@@ -544,7 +555,7 @@ export async function movePlanToDay(tripId: string, planId: string, date: string
   }
   const { error } = await supabase.from("plans").update(patch).eq("id", planId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
-  revalidatePath(`/t/${tripId}`);
+  revalidatePath(`/t/${tripId}`, "layout");
 }
 
 // Cosplay checklist = todos (category 'cosplay') attached to the plan.
@@ -661,7 +672,7 @@ export async function createCommute(tripId: string, fd: FormData) {
   if (error) throw new Error(error.message);
   await saveStops(supabase, data.id, stops);
   await syncCommuteTodo(supabase, tripId, data);
-  revalidatePath(`/t/${tripId}`);
+  revalidatePath(`/t/${tripId}`, "layout");
   redirect(`/t/${tripId}`);
 }
 
@@ -673,7 +684,7 @@ export async function updateCommute(tripId: string, commuteId: string, fd: FormD
   if (error) throw new Error(error.message);
   await saveStops(supabase, commuteId, stops);
   await syncCommuteTodo(supabase, tripId, data);
-  revalidatePath(`/t/${tripId}`);
+  revalidatePath(`/t/${tripId}`, "layout");
   redirect(`/t/${tripId}`);
 }
 
@@ -681,7 +692,7 @@ export async function deleteCommute(tripId: string, commuteId: string) {
   const { supabase } = await requireUser();
   const { error } = await supabase.from("commutes").delete().eq("id", commuteId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
-  revalidatePath(`/t/${tripId}`);
+  revalidatePath(`/t/${tripId}`, "layout");
   redirect(`/t/${tripId}`);
 }
 

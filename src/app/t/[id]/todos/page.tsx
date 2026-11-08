@@ -11,8 +11,6 @@ import {
 } from "@/app/actions";
 import type { Todo } from "@/lib/types";
 
-const BUILTIN = ["hotel", "ticket", "cosplay", "plan", "general"] as const;
-
 export default async function TodosPage({
   params,
   searchParams,
@@ -38,14 +36,15 @@ export default async function TodosPage({
   const openCount = todos.filter((x) => !x.done).length;
   const doneCount = todos.length - openCount;
 
-  // Group key: custom category id, else the built-in category.
-  const keyOf = (x: Todo) => (x.category_id && cats.some((k) => k.id === x.category_id) ? `c:${x.category_id}` : `b:${x.category}`);
-  const groups = [
-    ...cats.map((k) => ({ key: `c:${k.id}`, label: k.name, custom: k })),
-    ...BUILTIN.map((b) => ({ key: `b:${b}`, label: dc(`cats.${b}`), custom: null as null | { id: string; name: string } })),
-  ];
+  // No default categories: grouping/filtering only exists once the user has created their own.
+  // Everything without a (still existing) custom category is "Uncategorised".
+  const keyOf = (x: Todo) => (x.category_id && cats.some((k) => k.id === x.category_id) ? `c:${x.category_id}` : "u");
+  const hasCats = cats.length > 0;
+  const groups = hasCats
+    ? [...cats.map((k) => ({ key: `c:${k.id}`, label: k.name })), { key: "u", label: t("uncategorized") }]
+    : [{ key: "u", label: "" }];
   const shown = todos.filter((x) => (tab === "done" ? x.done : !x.done));
-  const filter = sp.cat && groups.some((g) => g.key === sp.cat) ? sp.cat : null;
+  const filter = hasCats && sp.cat && groups.some((g) => g.key === sp.cat) ? sp.cat : null;
   const href = (over: { tab?: string; cat?: string | null }) => {
     const q = new URLSearchParams();
     const tb = over.tab ?? tab;
@@ -75,12 +74,12 @@ export default async function TodosPage({
           <Link role="tab" aria-selected={tab === "done"} href={href({ tab: "done" })} className={tabCls(tab === "done")}>{t("done")} ({doneCount})</Link>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        {hasCats && <div className="flex flex-wrap gap-2">
           <Link href={href({ cat: null })} className={chipCls(!filter)}>{t("all")}</Link>
           {groups.map((g) => (
             <Link key={g.key} href={href({ cat: g.key })} className={chipCls(filter === g.key)}>{g.label}</Link>
           ))}
-        </div>
+        </div>}
 
         {shown.length === 0 ? (
           <p className="text-muted">{tab === "done" ? t("emptyDone") : t("emptyOpen")}</p>
@@ -92,7 +91,7 @@ export default async function TodosPage({
               if (list.length === 0) return null;
               return (
                 <section key={g.key} className="card space-y-1 p-4">
-                  <h2 className="font-medium">{g.label} <span className="text-xs text-muted tabular-nums">{list.length}</span></h2>
+                  {hasCats && <h2 className="font-medium">{g.label} <span className="text-xs text-muted tabular-nums">{list.length}</span></h2>}
                   <ul>
                     {list.map((x) => {
                       const src = srcHref(x);
@@ -109,8 +108,8 @@ export default async function TodosPage({
                           </span>
                           {cats.length > 0 && (
                             <form action={moveTodoItem.bind(null, id, x.id)} className="flex items-center gap-1">
-                              <select name="cat" defaultValue={keyOf(x)} className="input !h-8 !w-auto !py-0 text-xs" aria-label={t("move")}>
-                                <option value={`b:${x.category}`}>{dc(`cats.${x.category}`)}</option>
+                              <select name="cat" defaultValue={keyOf(x) === "u" ? "b:none" : keyOf(x)} className="input !h-8 !w-auto !py-0 text-xs" aria-label={t("move")}>
+                                <option value="b:none">{t("uncategorized")}</option>
                                 {cats.map((k) => <option key={k.id} value={`c:${k.id}`}>{k.name}</option>)}
                               </select>
                               <button className="btn btn-sm">{t("move")}</button>
@@ -133,12 +132,14 @@ export default async function TodosPage({
 
         <section className="card space-y-3 p-4">
           <h2 className="font-semibold">{t("add")}</h2>
-          <form action={addTodoItem.bind(null, id)} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_9rem_9rem_auto]">
+          <form action={addTodoItem.bind(null, id)} className={`grid grid-cols-1 gap-2 ${hasCats ? "sm:grid-cols-[1fr_9rem_9rem_auto]" : "sm:grid-cols-[1fr_9rem_auto]"}`}>
             <input name="title" className="input" required maxLength={200} placeholder={t("titlePh")} />
-            <select name="cat" className="input" defaultValue={filter?.startsWith("c:") ? filter : "b:general"} aria-label={t("category")}>
-              <option value="b:general">{dc("cats.general")}</option>
-              {cats.map((k) => <option key={k.id} value={`c:${k.id}`}>{k.name}</option>)}
-            </select>
+            {hasCats ? (
+              <select name="cat" className="input" defaultValue={filter?.startsWith("c:") ? filter : "b:none"} aria-label={t("category")}>
+                <option value="b:none">{t("uncategorized")}</option>
+                {cats.map((k) => <option key={k.id} value={`c:${k.id}`}>{k.name}</option>)}
+              </select>
+            ) : <input type="hidden" name="cat" value="b:none" />}
             <input name="due_date" type="date" className="input" aria-label={t("dueLabel")} />
             <SubmitButton>{t("addBtn")}</SubmitButton>
           </form>

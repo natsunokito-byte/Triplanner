@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { SubmitButton } from "./submit-button";
 import { UsdHint } from "./fx";
 import { PLAN_ICON, PLAN_TYPES, VISIBILITIES, ptVars, type PlanType, type Visibility } from "@/lib/plan-types";
 import { formatHours, hoursToMinutes, planTotal } from "@/lib/cost";
@@ -22,6 +22,8 @@ export function PlanForm({
   currency,
   submitLabel,
   back,
+  formId,
+  intercepted = false,
   costItems = [],
   categories = [],
 }: {
@@ -34,10 +36,14 @@ export function PlanForm({
   currency: string;
   submitLabel: string;
   back?: string;
+  formId?: string;
+  /** true when rendered inside the drawer: save closes the drawer instead of redirecting */
+  intercepted?: boolean;
   costItems?: { label: string; amount: number; per_hour: boolean }[];
   categories?: { id: string; name: string }[];
 }) {
   const t = useTranslations("plan");
+  const router = useRouter();
   const [type, setType] = useState<PlanType>(plan?.type ?? defaults.type);
   const [visibility, setVisibility] = useState<Visibility>(plan?.visibility ?? "normal");
   const [hours, setHours] = useState(formatHours(plan?.duration_min ?? 60));
@@ -59,6 +65,7 @@ export function PlanForm({
   const duration = hoursToMinutes(Number(hours));
   const badDuration = hours.trim() === "" || !Number.isFinite(duration) || Number(hours) < 0.5 || Number(hours) > 48;
   const isCosplay = type === "cosplay_photoshoot";
+  const isWake = type === "wake_up"; // only records a time: no title/place/duration/cost needed
   const num = (v: string) => (v.trim() === "" || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : Number(v));
   const cleanItems = items
     .filter((i) => num(i.amount) != null)
@@ -74,8 +81,15 @@ export function PlanForm({
   const cleanTodos = todoLines.filter((x) => x.title.trim() !== "").map((x) => ({ title: x.title.trim(), cat: x.cat }));
 
   return (
-    <form action={action} className="space-y-5">
-      {back && <input type="hidden" name="back" value={back} />}
+    <form
+      id={formId}
+      action={async (fd) => {
+        await action(fd);
+        if (intercepted) router.back();
+      }}
+      className="space-y-5"
+    >
+      {(intercepted || back) && <input type="hidden" name="back" value={intercepted ? "close" : back} />}
       <fieldset>
         <legend className="label">{t("type")}</legend>
         <input type="hidden" name="type" value={type} />
@@ -103,7 +117,7 @@ export function PlanForm({
 
       <div>
         <label className="label" htmlFor="title">{t("title")}</label>
-        <input id="title" name="title" className="input" required maxLength={160} placeholder={t("titlePh")} defaultValue={plan?.title} />
+        <input id="title" name="title" className="input" required={!isWake} maxLength={160} placeholder={isWake ? t("types.wake_up") : t("titlePh")} defaultValue={plan?.title} />
       </div>
 
       {isCosplay && (
@@ -131,7 +145,7 @@ export function PlanForm({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div hidden={isWake} className="grid grid-cols-2 gap-3">
         <div>
           <label className="label" htmlFor="location_name">{t("location")}</label>
           <input id="location_name" name="location_name" className="input" maxLength={200} placeholder={t("locationPh")} defaultValue={plan?.location_name ?? ""} />
@@ -149,21 +163,21 @@ export function PlanForm({
         </div>
         <div>
           <label className="label" htmlFor="time">{t("time")}</label>
-          <input id="time" name="time" type="time" className="input" defaultValue={defaults.time ?? ""} />
+          <input id="time" name="time" type="time" className="input" required={isWake} defaultValue={defaults.time ?? ""} />
         </div>
         <p className="col-span-2 -mt-1 text-xs text-muted">{t("scheduleHint")}</p>
-        <div>
+        <div hidden={isWake}>
           <label className="label" htmlFor="duration_h">{t("duration")}</label>
-          <input id="duration_h" type="number" min={0.5} max={48} step={0.5} className="input" required value={hours} onChange={(e) => setHours(e.target.value)} />
+          <input id="duration_h" type="number" min={0.5} max={48} step={0.5} className="input" required={!isWake} value={hours} onChange={(e) => setHours(e.target.value)} />
           <input type="hidden" name="duration_min" value={Number.isFinite(duration) ? duration : ""} />
         </div>
-        <div className="col-span-2 flex flex-wrap items-center gap-2">
+        <div hidden={isWake} className="col-span-2 flex flex-wrap items-center gap-2">
           {[0.5, 1, 1.5, 2, 3, 4].map((h) => (
             <button key={h} type="button" className={`chip ${Number(hours) === h ? "" : "!bg-surface-2 !text-muted"}`} onClick={() => setHours(String(h))}>{h}</button>
           ))}
           <span className="text-xs text-muted">{t("durationHint")} · {t("tzNote", { tz })}</span>
         </div>
-        {badDuration && <p className="col-span-2 text-xs text-danger">{t("timeError")}</p>}
+        {badDuration && !isWake && <p className="col-span-2 text-xs text-danger">{t("timeError")}</p>}
       </div>
 
       <div>
@@ -174,7 +188,7 @@ export function PlanForm({
         <p className="mt-1 text-xs text-muted">{t(`visHint.${visibility}`)}</p>
       </div>
 
-      <fieldset disabled={ownerOnly} className={ownerOnly ? "opacity-50" : ""}>
+      <fieldset hidden={isWake} disabled={ownerOnly} className={ownerOnly ? "opacity-50" : ""}>
         <legend className="label">{t("people")}</legend>
         {people.length === 0 ? (
           <p className="text-xs text-muted">{t("noPeople")}</p>
@@ -196,7 +210,7 @@ export function PlanForm({
         )}
       </fieldset>
 
-      <fieldset className="space-y-3">
+      <fieldset hidden={isWake} className="space-y-3">
         <legend className="label">{t("cost")}</legend>
         <input type="hidden" name="cost_items" value={JSON.stringify(cleanItems)} />
         {items.map((it, i) => (
@@ -231,25 +245,25 @@ export function PlanForm({
         )}
       </fieldset>
 
-      <fieldset className="space-y-2">
+      <fieldset hidden={isWake} className="space-y-2">
         <legend className="label">{t("planTodos")}</legend>
         <input type="hidden" name="new_todos" value={JSON.stringify(cleanTodos)} />
         {todoLines.map((x, i) => (
-          <div key={i} className="grid grid-cols-[1fr_8rem_auto] items-center gap-2">
+          <div key={i} className={`grid items-center gap-2 ${categories.length > 0 ? "grid-cols-[1fr_8rem_auto]" : "grid-cols-[1fr_auto]"}`}>
             <input className="input" maxLength={200} placeholder={t("planTodoPh")} value={x.title} onChange={(e) => patchTodo(i, { title: e.target.value })} />
-            <select className="input" value={x.cat} onChange={(e) => patchTodo(i, { cat: e.target.value })} aria-label={t("todoCategory")}>
-              <option value="b:plan">{t("catPlan")}</option>
-              {isCosplay && <option value="b:cosplay">Cosplay</option>}
-              <option value="b:general">{t("catGeneral")}</option>
-              {categories.map((c) => <option key={c.id} value={`c:${c.id}`}>{c.name}</option>)}
-            </select>
+            {categories.length > 0 ? (
+              <select className="input" value={x.cat} onChange={(e) => patchTodo(i, { cat: e.target.value })} aria-label={t("todoCategory")}>
+                <option value="b:auto">{t("uncategorized")}</option>
+                {categories.map((c) => <option key={c.id} value={`c:${c.id}`}>{c.name}</option>)}
+              </select>
+            ) : <span />}
             <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")} onClick={() => setTodoLines(todoLines.filter((_, k) => k !== i))}><X size={14} /></button>
           </div>
         ))}
-        <button type="button" className="btn btn-sm" onClick={() => setTodoLines([...todoLines, { title: "", cat: isCosplay ? "b:cosplay" : "b:plan" }])}><Plus size={14} /> {t("addPlanTodo")}</button>
+        <button type="button" className="btn btn-sm" onClick={() => setTodoLines([...todoLines, { title: "", cat: "b:auto" }])}><Plus size={14} /> {t("addPlanTodo")}</button>
       </fieldset>
 
-      <div>
+      <div hidden={isWake}>
         <label className="label" htmlFor="link">{t("link")}</label>
         <input id="link" name="link" type="url" className="input" placeholder="https://" defaultValue={plan?.link ?? ""} />
       </div>
@@ -258,7 +272,7 @@ export function PlanForm({
         <textarea id="note" name="note" rows={3} className="input h-auto py-2" defaultValue={plan?.note ?? ""} />
       </div>
 
-      <SubmitButton className={badDuration ? "pointer-events-none opacity-50" : ""}>{submitLabel}</SubmitButton>
+      {!formId && <button type="submit" disabled={badDuration && !isWake} className="btn btn-primary">{submitLabel}</button>}
     </form>
   );
 }

@@ -36,7 +36,7 @@ export function UnscheduledList({ tripId, plans, days }: { tripId: string; plans
             return (
               <div key={p.id} className="flex flex-wrap items-center gap-2 rounded-[8px] border border-border bg-surface p-2 pl-3" style={{ borderLeft: `4px solid ${c.dot}` }}>
                 <Link href={`/t/${tripId}/plans/${p.id}`} className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1 text-xs text-muted"><Icon size={13} style={{ color: c.fg }} /> {t(`types.${p.type}`)} · {t("hours", { h: formatHours(p.duration_min) })}</div>
+                  <div className="flex items-center gap-1 text-xs text-muted"><Icon size={13} style={{ color: c.fg }} /> {t(`types.${p.type}`)}{p.type !== "wake_up" && <> · {t("hours", { h: formatHours(p.duration_min) })}</>}</div>
                   <div className="mt-0.5 inline-block rounded-full bg-surface-2 px-2 text-[11px] text-muted">{p.plan_time ? t("noDateHasTime", { time: p.plan_time }) : t("noDateNoTime")}</div>
                   <div className="truncate font-semibold">{p.title}</div>
                 </Link>

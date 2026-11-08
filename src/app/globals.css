@@ -18,6 +18,7 @@
   --pt-hangout-bg:#ede9fe; --pt-hangout-fg:#5b21b6; --pt-hangout:#8b5cf6;
   --pt-event-bg:#ccfbf1; --pt-event-fg:#115e59; --pt-event:#14b8a6;
   --pt-task-bg:#e5e7eb; --pt-task-fg:#374151; --pt-task:#6b7280;
+  --pt-wake-bg:#fef9c3; --pt-wake-fg:#854d0e; --pt-wake:#eab308;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -68,3 +69,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+@keyframes drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.drawer-panel { animation: drawer-in 0.2s ease-out; }
+@media (prefers-reduced-motion: reduce) { .drawer-panel { animation: none; } }

@@ -11,7 +11,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
 import { getLatestRates } from "@/lib/fx";
 import { toTrip, type FxCtx } from "@/lib/money";
-import { PLAN_TYPES } from "@/lib/plan-types";
+import { NON_ACTIVITY, PLAN_TYPES } from "@/lib/plan-types";
 import { addGeneralTodo, deleteGeneralTodo, toggleDashTodo } from "@/app/actions";
 import type { Commute, Hotel, Person, Plan, Todo, Trip } from "@/lib/types";
 
@@ -95,7 +95,7 @@ export default async function Dashboard({ params }: { params: Promise<{ id: stri
   const entries: ScoreEntry[] = plans
     .filter((p) => p.completed && p.visibility !== "owner_only")
     .map((p) => ({ type: p.type, duration: p.duration_min, personIds: (ppRows ?? []).filter((r) => r.plan_id === p.id).map((r) => r.person_id as string) }))
-    .filter((e) => (PLAN_TYPES as readonly string[]).includes(e.type) && e.type !== "task"); // tasks are chores, not time together
+    .filter((e) => (PLAN_TYPES as readonly string[]).includes(e.type) && !NON_ACTIVITY.includes(e.type)); // tasks/alarms are not time together
   const hangoutMin = entries.filter((e) => e.personIds.some((pid) => others.some((o) => o.id === pid))).reduce((s, e) => s + e.duration, 0);
 
   const exportData = {

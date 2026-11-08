@@ -140,7 +140,8 @@
       "date": "約會",
       "hangout": "聚會",
       "event": "活動",
-      "task": "任務"
+      "task": "任務",
+      "wake_up": "起床"
     },
     "add": "新增行程",
     "newTitle": "新增行程",
@@ -243,7 +244,9 @@
     "copyHere": "複製到同一天（時間未定）",
     "noDateHasTime": "無日期 · {time}",
     "noDateNoTime": "無日期、無時間",
-    "noTime": "無時間"
+    "noTime": "無時間",
+    "uncategorized": "未分類",
+    "createShort": "建立"
   },
   "commute": {
     "methods": {
@@ -504,11 +507,12 @@
     "dueLabel": "到期日（選填）",
     "addBtn": "新增",
     "categories": "自訂分類",
-    "categoriesHint": "建立自己的分類（例如：行李、預約、買禮物）來整理所有待辦；住宿、票券、行程等內建分類仍會保留。",
+    "categoriesHint": "建立自己的分類（例如：行李、預約、買禮物）來整理待辦。建立後才會出現分類與「未分類」；沒有分類時，所有待辦就是一份清單。",
     "categoryName": "分類名稱",
     "categoryPh": "新分類名稱",
     "addCategory": "新增分類",
-    "deleteCategoryConfirm": "刪除這個分類？裡面的待辦不會被刪除，會回到原本的內建分類。",
-    "link": "待辦事項"
+    "deleteCategoryConfirm": "刪除這個分類？裡面的待辦不會被刪除，會變成「未分類」。",
+    "link": "待辦事項",
+    "uncategorized": "未分類"
   }
 }

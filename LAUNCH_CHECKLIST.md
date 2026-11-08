@@ -106,3 +106,4 @@
 - [ ] 已建立過資料庫的人：Supabase → SQL Editor → 貼上 `supabase/migrations/002_m13.sql` → Run（只跑一次）。沒跑的話，新增行程、待辦頁會出錯。
 - [ ] 再執行 `supabase/migrations/003_m14.sql`（M14，接在 002 之後；只跑一次）。
 - [ ] 再執行 `supabase/migrations/004_m15.sql`（M15，接在 003 之後；只跑一次）。
+- [ ] 再執行 `supabase/migrations/005_m16.sql`（M16，接在 004 之後；只跑一次）。

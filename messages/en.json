@@ -140,7 +140,8 @@
       "date": "Date",
       "hangout": "Hangout",
       "event": "Event",
-      "task": "Task"
+      "task": "Task",
+      "wake_up": "Wake up"
     },
     "add": "Add plan",
     "newTitle": "Add plan",
@@ -243,7 +244,9 @@
     "copyHere": "Copy to the same day (time TBD)",
     "noDateHasTime": "No date · {time}",
     "noDateNoTime": "No date, no time",
-    "noTime": "No time"
+    "noTime": "No time",
+    "uncategorized": "Uncategorized",
+    "createShort": "Create"
   },
   "commute": {
     "methods": {
@@ -504,11 +507,12 @@
     "dueLabel": "Due date (optional)",
     "addBtn": "Add",
     "categories": "Custom categories",
-    "categoriesHint": "Create your own categories (e.g. luggage, bookings, gifts) to organise every to-do. Built-in Hotel, Ticket and Plan categories stay.",
+    "categoriesHint": "Create your own categories (e.g. luggage, bookings, gifts) to organise to-dos. Categories and \"Uncategorized\" only appear once you've made one; until then it's a single list.",
     "categoryName": "Category name",
     "categoryPh": "New category name",
     "addCategory": "Add category",
-    "deleteCategoryConfirm": "Delete this category? Its to-dos are kept and go back to their built-in category.",
-    "link": "To-dos"
+    "deleteCategoryConfirm": "Delete this category? Its to-dos are kept and become \"Uncategorized\".",
+    "link": "To-dos",
+    "uncategorized": "Uncategorized"
   }
 }

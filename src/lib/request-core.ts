@@ -19,7 +19,7 @@ export type AvailTrip = {
 /** Everything that makes the owner busy. Privacy: only intervals leave this function, never titles or places. */
 export async function loadBusy(db: SupabaseClient, tripId: string): Promise<Interval[]> {
   const [{ data: plans }, { data: commutes }, { data: blocks }, { data: hotels }] = await Promise.all([
-    db.from("plans").select("start_at,duration_min").eq("trip_id", tripId),
+    db.from("plans").select("start_at,duration_min,type").eq("trip_id", tripId),
     db.from("commutes").select("id,start_at,duration_min").eq("trip_id", tripId),
     db.from("availability_blocks").select("start_at,end_at").eq("trip_id", tripId),
     db.from("hotels").select("check_in,check_out").eq("trip_id", tripId),
@@ -30,7 +30,7 @@ export async function loadBusy(db: SupabaseClient, tripId: string): Promise<Inte
   const stay = new Map<string, number>();
   for (const x of stopRows ?? []) stay.set(x.commute_id, (stay.get(x.commute_id) ?? 0) + (x.stay_min ?? 0));
   const out: Interval[] = [];
-  for (const p of plans ?? []) { if (!p.start_at) continue; /* unscheduled plans are never busy */ const s = Date.parse(p.start_at); out.push({ start: s, end: s + p.duration_min * MIN }); }
+  for (const p of plans ?? []) { if (!p.start_at || p.type === "wake_up") continue; /* unscheduled plans and wake-up alarms are never busy */ const s = Date.parse(p.start_at); out.push({ start: s, end: s + p.duration_min * MIN }); }
   for (const c of commutes ?? []) { const s = Date.parse(c.start_at); if (Number.isFinite(s)) out.push({ start: s, end: s + ((c.duration_min ?? 0) + (stay.get(c.id) ?? 0)) * MIN }); }
   for (const b of blocks ?? []) out.push({ start: Date.parse(b.start_at), end: Date.parse(b.end_at) });
   for (const h of hotels ?? []) {

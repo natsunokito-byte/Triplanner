@@ -71,7 +71,7 @@ export default async function PlanOverview({
           <Icon size={18} style={{ color: col.fg }} className="mt-0.5 shrink-0" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 text-xs tabular-nums text-muted">
-              {p.start_at ? utcToLocal(p.start_at, trip.timezone).slice(11, 16) : t("noTime")} · {t("hours", { h: formatHours(p.duration_min) })}
+              {p.start_at ? utcToLocal(p.start_at, trip.timezone).slice(11, 16) : t("noTime")}{p.type !== "wake_up" && <> · {t("hours", { h: formatHours(p.duration_min) })}</>}
               <span className="rounded-full px-2 text-[11px]" style={{ background: col.bg, color: col.fg }}>{t(`types.${p.type}`)}</span>
               {schedState(p) !== "full" && schedState(p) !== "dateOnly" && <span className="rounded-full bg-surface-2 px-2 text-[11px]">{p.plan_time ? t("noDateHasTime", { time: hhmm(p.plan_time)! }) : t("noDateNoTime")}</span>}
             </div>

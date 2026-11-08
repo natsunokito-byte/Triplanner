@@ -197,7 +197,8 @@ export function DayBoard({
       <div data-sync="board" className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 md:snap-none">
         {columns.map((d) => {
           const dayPlans = byDay.get(d) ?? [];
-          const list = dayPlans.filter((p) => p.start_at).sort((a, b) => a.start_at!.localeCompare(b.start_at!));
+          const wakes = dayPlans.filter((p) => p.start_at && p.type === "wake_up").sort((a, b) => a.start_at!.localeCompare(b.start_at!));
+          const list = dayPlans.filter((p) => p.start_at && p.type !== "wake_up").sort((a, b) => a.start_at!.localeCompare(b.start_at!));
           const tbd = dayPlans.filter((p) => !p.start_at);
           const outside = !days.includes(d);
           let prevEnd = 0;
@@ -234,6 +235,9 @@ export function DayBoard({
               </div>
 
               <ul className="flex flex-1 flex-col gap-2 p-2">
+                {wakes.map((p) => (
+                  <li key={p.id}>{renderCard(p, d, PLAN_ICON[p.type], ptVars(p.type), hm.format(Date.parse(p.start_at!)))}</li>
+                ))}
                 {dayPlans.length === 0 && <li className="py-6 text-center text-xs text-muted">{t("dayEmpty")}</li>}
                 {list.map((p, idx) => {
                   const next = list[idx + 1];

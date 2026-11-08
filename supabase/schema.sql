@@ -4,7 +4,7 @@
 create extension if not exists "pgcrypto";
 
 create type plan_type as enum
-  ('breakfast','lunch','dinner','tea','workshop','cosplay_photoshoot','date','hangout','event','task');
+  ('breakfast','lunch','dinner','tea','workshop','cosplay_photoshoot','date','hangout','event','task','wake_up');
 create type booking_status as enum ('confirmed','not_booked');
 create type commute_method as enum ('walk','train','subway','bus','taxi','flight','car','bike','other');
 create type payment_method as enum ('ticket','ic_card','cash');
