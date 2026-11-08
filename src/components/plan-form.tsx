@@ -8,7 +8,7 @@ import { PLAN_ICON, SELECTABLE_TYPES, canOpenClaim, TASK_TODO_TYPES, VISIBILITIE
 import { formatHours, hoursToMinutes, planTotal } from "@/lib/cost";
 import { photographerFee, type Photographer } from "@/lib/photographers";
 import { CurrencyList, ShoppingList, type ShoppingItem } from "./shopping-item-row";
-import { Check, Circle, Plus, X } from "lucide-react";
+import { Check, Circle, Plus, Trash2 } from "lucide-react";
 import { deletePlanTodo, togglePlanTodo } from "@/app/actions";
 import type { Person, Plan } from "@/lib/types";
 
@@ -136,7 +136,7 @@ export function PlanForm({
                     startTodo(() => deletePlanTodo(plan.trip_id, plan.id, todo.id));
                   }}
                 >
-                  <X size={14} />
+                  <Trash2 size={14} />
                 </button>
               </li>
             ))}
@@ -161,8 +161,8 @@ export function PlanForm({
                 <option value="b:auto">{t("uncategorized")}</option>
                 {categories.map((c) => <option key={c.id} value={`c:${c.id}`}>{c.name}</option>)}
               </select>
-            ) : <span />}
-            <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")} onClick={() => setTodoLines(todoLines.filter((_, k) => k !== i))}><X size={14} /></button>
+            ) : null}
+            <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")} onClick={() => setTodoLines(todoLines.filter((_, k) => k !== i))}><Trash2 size={14} /></button>
           </div>
         ))}
         <button type="button" className="btn btn-sm" onClick={() => { setTodoLines([...todoLines, { title: "", cat: "b:auto" }]); setFocusIdx(todoLines.length); }}><Plus size={14} /> {type === "shopping" ? t("addShopping") : t("addPlanTodo")}</button>
@@ -325,7 +325,7 @@ export function PlanForm({
           <div key={i} className="grid grid-cols-[1fr_7rem_auto] items-center gap-2">
             <input className="input" maxLength={80} placeholder={t("itemLabelPh")} aria-label={t("itemLabel")} value={it.label} onChange={(e) => patchItem(i, { label: e.target.value })} />
             <input className="input" type="number" min="0" step="0.01" placeholder="0" aria-label={t("itemAmount")} value={it.amount} onChange={(e) => patchItem(i, { amount: e.target.value })} />
-            <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")} onClick={() => setItems(items.filter((_, k) => k !== i))}><X size={14} /></button>
+            <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")} onClick={() => setItems(items.filter((_, k) => k !== i))}><Trash2 size={14} /></button>
             <label className="col-span-3 -mt-1 flex items-center gap-2 text-xs text-muted">
               <input type="checkbox" checked={it.per_hour} onChange={(e) => patchItem(i, { per_hour: e.target.checked })} />
               {t("perHour", { h: Number.isFinite(duration) ? formatHours(duration) : "?" })}

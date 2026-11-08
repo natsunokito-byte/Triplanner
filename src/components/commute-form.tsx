@@ -3,7 +3,7 @@
 import { AutosaveForm } from "./autosave-form";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2, Plus, Sparkles, X } from "lucide-react";
+import { Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
 import { MAX_STOPS, legsOf, totalStay } from "@/lib/stops";
 import { SubmitButton } from "./submit-button";
 import { CostFields } from "./fx";
@@ -100,7 +100,7 @@ export function CommuteForm({
           <div key={i} className="grid grid-cols-[1fr_6rem_auto] items-center gap-2">
             <input className="input" maxLength={120} placeholder={t("stopPh")} aria-label={t("stopLabel")} value={x.label} onChange={(e) => setStops(stops.map((y, k) => (k === i ? { ...y, label: e.target.value } : y)))} />
             <input className="input" type="number" min={0} max={1440} step={5} placeholder="0" aria-label={t("stopStay")} value={x.stay} onChange={(e) => setStops(stops.map((y, k) => (k === i ? { ...y, stay: e.target.value } : y)))} />
-            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeStop")} onClick={() => setStops(stops.filter((_, k) => k !== i))}><X size={14} /></button>
+            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeStop")} onClick={() => setStops(stops.filter((_, k) => k !== i))}><Trash2 size={14} /></button>
           </div>
         ))}
         <div className="flex flex-wrap items-center gap-3">
