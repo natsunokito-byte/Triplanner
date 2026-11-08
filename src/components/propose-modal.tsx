@@ -1,11 +1,14 @@
 "use client";
 
 import Script from "next/script";
-import { useActionState, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Lightbulb, X } from "lucide-react";
 import { SubmitButton } from "./submit-button";
 import type { ClaimState } from "@/app/a/[token]/actions";
+
+type TS = { render: (el: HTMLElement, o: { sitekey: string }) => string; reset: (id?: string) => void };
+const ts = () => (window as unknown as { turnstile?: TS }).turnstile;
 
 /** "Propose a plan" button + modal form on the public claim page. */
 export function ProposeModal({
@@ -18,10 +21,25 @@ export function ProposeModal({
   const ref = useRef<HTMLDialogElement>(null);
   const [state, formAction] = useActionState(action, {} as ClaimState);
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const boxRef = useRef<HTMLDivElement>(null);
+  const widget = useRef<string | null>(null);
+  const [opened, setOpened] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  // Render explicitly once the modal is open and visible (implicit render inside a hidden <dialog> yields no token).
+  useEffect(() => {
+    if (!siteKey || !opened || !ready || !boxRef.current || widget.current) return;
+    const api = ts();
+    if (api) widget.current = api.render(boxRef.current, { sitekey: siteKey });
+  });
+  // A token is single-use: get a fresh one after every submit attempt that failed.
+  useEffect(() => {
+    if (state.error && widget.current) ts()?.reset(widget.current);
+  }, [state]);
 
   return (
     <>
-      <button type="button" className="btn btn-primary" onClick={() => ref.current?.showModal()}>
+      <button type="button" className="btn btn-primary" onClick={() => { setOpened(true); ref.current?.showModal(); }}>
         <Lightbulb size={16} /> {t("propose")}
       </button>
       <dialog
@@ -74,8 +92,8 @@ export function ProposeModal({
             </div>
             {siteKey && (
               <>
-                <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" strategy="lazyOnload" />
-                <div className="cf-turnstile" data-sitekey={siteKey} />
+                {opened && <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="afterInteractive" onReady={() => setReady(true)} />}
+                <div ref={boxRef} />
               </>
             )}
             {state.error && <p role="alert" className="text-xs text-danger">{t(`err.${state.error}`)}</p>}
