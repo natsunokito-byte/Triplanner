@@ -95,9 +95,9 @@ export function PlanForm({
         {plan && saved.length > 0 && (
           <ul className="space-y-1">
             {saved.map((todo) => (
-              <li key={todo.id} className="flex items-center gap-2">
+              <li key={todo.id} className="flex min-h-10 items-center gap-2">
                 <button
-                  type="button" className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2" aria-label={todo.done ? "undo" : "done"}
+                  type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md hover:bg-surface-2" aria-label={todo.done ? "undo" : "done"}
                   onClick={() => {
                     setSaved(saved.map((x) => (x.id === todo.id ? { ...x, done: !x.done } : x)));
                     startTodo(() => togglePlanTodo(plan.trip_id, plan.id, todo.id, !todo.done));
@@ -107,7 +107,7 @@ export function PlanForm({
                 </button>
                 <span className={`flex-1 ${todo.done ? "text-muted line-through" : ""}`}>{todo.title}</span>
                 <button
-                  type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")}
+                  type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")}
                   onClick={() => {
                     setSaved(saved.filter((x) => x.id !== todo.id));
                     startTodo(() => deletePlanTodo(plan.trip_id, plan.id, todo.id));
@@ -139,7 +139,7 @@ export function PlanForm({
                 {categories.map((c) => <option key={c.id} value={`c:${c.id}`}>{c.name}</option>)}
               </select>
             ) : <span />}
-            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")} onClick={() => setTodoLines(todoLines.filter((_, k) => k !== i))}><X size={14} /></button>
+            <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")} onClick={() => setTodoLines(todoLines.filter((_, k) => k !== i))}><X size={14} /></button>
           </div>
         ))}
         <button type="button" className="btn btn-sm" onClick={() => { setTodoLines([...todoLines, { title: "", cat: "b:auto" }]); setFocusIdx(todoLines.length); }}><Plus size={14} /> {t("addPlanTodo")}</button>
@@ -301,7 +301,7 @@ export function PlanForm({
           <div key={i} className="grid grid-cols-[1fr_7rem_auto] items-center gap-2">
             <input className="input" maxLength={80} placeholder={t("itemLabelPh")} aria-label={t("itemLabel")} value={it.label} onChange={(e) => patchItem(i, { label: e.target.value })} />
             <input className="input" type="number" min="0" step="0.01" placeholder="0" aria-label={t("itemAmount")} value={it.amount} onChange={(e) => patchItem(i, { amount: e.target.value })} />
-            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")} onClick={() => setItems(items.filter((_, k) => k !== i))}><X size={14} /></button>
+            <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")} onClick={() => setItems(items.filter((_, k) => k !== i))}><X size={14} /></button>
             <label className="col-span-3 -mt-1 flex items-center gap-2 text-xs text-muted">
               <input type="checkbox" checked={it.per_hour} onChange={(e) => patchItem(i, { per_hour: e.target.checked })} />
               {t("perHour", { h: Number.isFinite(duration) ? formatHours(duration) : "?" })}

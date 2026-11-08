@@ -134,8 +134,8 @@ export default async function TodosPage({
                 {g.items.map((x) => {
                   const src = srcHref(x);
                   return (
-                    <li key={x.id} className="flex flex-wrap items-center gap-2">
-                      <form action={toggleTodoItem.bind(null, id, x.id, !x.done)}>
+                    <li key={x.id} className="flex min-h-10 flex-wrap items-center gap-2">
+                      <form action={toggleTodoItem.bind(null, id, x.id, !x.done)} className="flex items-center">
                         <button className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2" aria-label={x.done ? t("reopen") : t("complete")}>
                           {x.done ? <Check size={18} className="text-success" /> : <Circle size={18} className="text-muted" />}
                         </button>
@@ -147,16 +147,16 @@ export default async function TodosPage({
                       </span>
                       {hasCats && (
                         <form action={moveTodoItem.bind(null, id, x.id)} className="flex items-center gap-1">
-                          <select name="cat" defaultValue={catKeyOf(x) === "u" ? "b:none" : catKeyOf(x)} className="input !h-8 !w-auto !py-0 text-xs" aria-label={t("move")}>
+                          <select name="cat" defaultValue={catKeyOf(x) === "u" ? "b:none" : catKeyOf(x)} className="input !h-10 !w-auto !py-0 text-xs" aria-label={t("move")}>
                             <option value="b:none">{t("uncategorized")}</option>
                             {cats.map((k) => <option key={k.id} value={`c:${k.id}`}>{k.name}</option>)}
                           </select>
-                          <button className="btn btn-sm">{t("move")}</button>
+                          <button className="btn">{t("move")}</button>
                         </form>
                       )}
                       {src && <Link href={src} className="text-muted hover:text-text" aria-label={t("open")}><ExternalLink size={14} /></Link>}
                       {!x.auto_generated && (
-                        <form action={deleteTodoItem.bind(null, id, x.id)}>
+                        <form action={deleteTodoItem.bind(null, id, x.id)} className="flex items-center">
                           <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={c("delete")}><Trash2 size={14} /></button>
                         </form>
                       )}
@@ -191,18 +191,18 @@ export default async function TodosPage({
             <ul className="space-y-2">
               {cats.map((k) => (
                 <li key={k.id} className="flex items-center gap-2">
-                  <form action={renameTodoCategory.bind(null, id, k.id)} className="flex flex-1 gap-2">
+                  <form action={renameTodoCategory.bind(null, id, k.id)} className="flex flex-1 items-center gap-2">
                     <input name="name" className="input" required maxLength={40} defaultValue={k.name} aria-label={t("categoryName")} />
-                    <button className="btn btn-sm shrink-0">{c("save")}</button>
+                    <button className="btn shrink-0">{c("save")}</button>
                   </form>
-                  <form action={deleteTodoCategory.bind(null, id, k.id)}>
-                    <ConfirmButton className="btn-danger btn-sm" message={t("deleteCategoryConfirm")}>{c("delete")}</ConfirmButton>
+                  <form action={deleteTodoCategory.bind(null, id, k.id)} className="flex items-center">
+                    <ConfirmButton className="btn-danger shrink-0" message={t("deleteCategoryConfirm")}>{c("delete")}</ConfirmButton>
                   </form>
                 </li>
               ))}
             </ul>
           )}
-          <form action={createTodoCategory.bind(null, id)} className="flex gap-2 border-t border-border pt-3">
+          <form action={createTodoCategory.bind(null, id)} className="flex items-center gap-2 border-t border-border pt-3">
             <input name="name" className="input" required maxLength={40} placeholder={t("categoryPh")} />
             <SubmitButton className="shrink-0">{t("addCategory")}</SubmitButton>
           </form>
