@@ -308,7 +308,9 @@
     "addStop": "Add stopover",
     "stayTotal": "Total stay {n} min",
     "stopsHint": "Right box = minutes you stay. Estimate sums each leg's travel time; stays are extra and count as busy time.",
-    "stopsCount": "{n} stops"
+    "stopsCount": "{n} stops",
+    "addFromHotel": "+ Hotel → first plan",
+    "addToHotel": "+ Last plan → hotel"
   },
   "fx": {
     "showIn": "Display currency",

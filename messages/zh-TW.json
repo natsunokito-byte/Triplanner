@@ -308,7 +308,9 @@
     "addStop": "新增中停點",
     "stayTotal": "停留合計 {n} 分",
     "stopsHint": "欄位右側＝停留分鐘。「估算」會分段加總各段行車時間；停留時間另計，並算進你的忙碌時段。",
-    "stopsCount": "{n} 個中停點"
+    "stopsCount": "{n} 個中停點",
+    "addFromHotel": "+ 住宿 → 第一個行程",
+    "addToHotel": "+ 最後行程 → 住宿"
   },
   "fx": {
     "showIn": "顯示幣別",

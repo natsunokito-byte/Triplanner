@@ -94,6 +94,27 @@ export function DayBoard({
     });
   }
 
+  function pill(link: BoardCommute | undefined, href: string, emptyLabel: string, extra = "mt-2") {
+    const CIcon = link ? METHOD_ICON[link.method] : null;
+    return (
+      <Link
+        href={link ? `/t/${tripId}/commutes/${link.id}` : href}
+        className={`mx-auto ${extra} flex w-fit items-center gap-1 rounded-full px-3 py-1 text-xs ${
+          link ? "bg-surface-2 text-text" : "border border-dashed border-border text-muted hover:text-text"
+        }`}
+      >
+        {link && CIcon ? (
+          <>
+            <CIcon size={12} /> {tc(`methods.${link.method}`)} · {tc("min", { n: link.duration_min })}{link.stops.length > 0 && <> · {tc("stopsCount", { n: link.stops.length })}</>}
+            {link.cost != null && <> · <Money amount={link.cost} currency={link.cost_currency ?? currency} /></>}
+          </>
+        ) : (
+          emptyLabel
+        )}
+      </Link>
+    );
+  }
+
   function renderCard(p: BoardPlan, d: string, Icon: LucideIcon, c: ReturnType<typeof ptVars>, timeLabel: string) {
     return (
       <>
@@ -217,7 +238,8 @@ export function DayBoard({
                 {list.map((p, idx) => {
                   const next = list[idx + 1];
                   const link = next ? commutes.find((x) => x.from_plan_id === p.id && x.to_plan_id === next.id) : undefined;
-                  const CIcon = link ? METHOD_ICON[link.method] : null;
+                  const firstLink = commutes.find((x) => x.from_plan_id === null && x.to_plan_id === p.id);
+                  const lastLink = commutes.find((x) => x.from_plan_id === p.id && x.to_plan_id === null);
                   const Icon = PLAN_ICON[p.type];
                   const c = ptVars(p.type);
                   const startMs = Date.parse(p.start_at!);
@@ -229,24 +251,10 @@ export function DayBoard({
                       {overlap && (
                         <div className="mb-1 flex items-center gap-1 text-[11px] text-warning"><AlertTriangle size={12} /> {t("overlap")}</div>
                       )}
+                      {idx === 0 && pill(firstLink, `/t/${tripId}/commutes/new?to=${p.id}`, tc("addFromHotel"), "mb-2")}
                       {renderCard(p, d, Icon, c, `${hm.format(startMs)}–${hm.format(endMs)}`)}
-                      {next && (
-                        <Link
-                          href={link ? `/t/${tripId}/commutes/${link.id}` : `/t/${tripId}/commutes/new?from=${p.id}&to=${next.id}`}
-                          className={`mx-auto mt-2 flex w-fit items-center gap-1 rounded-full px-3 py-1 text-xs ${
-                            link ? "bg-surface-2 text-text" : "border border-dashed border-border text-muted hover:text-text"
-                          }`}
-                        >
-                          {link && CIcon ? (
-                            <>
-                              <CIcon size={12} /> {tc(`methods.${link.method}`)} · {tc("min", { n: link.duration_min })}{link.stops.length > 0 && <> · {tc("stopsCount", { n: link.stops.length })}</>}
-                              {link.cost != null && <> · <Money amount={link.cost} currency={link.cost_currency ?? currency} /></>}
-                            </>
-                          ) : (
-                            tc("add")
-                          )}
-                        </Link>
-                      )}
+                      {next && pill(link, `/t/${tripId}/commutes/new?from=${p.id}&to=${next.id}`, tc("add"))}
+                      {!next && pill(lastLink, `/t/${tripId}/commutes/new?from=${p.id}`, tc("addToHotel"))}
                     </li>
                   );
                 })}
