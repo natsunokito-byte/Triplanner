@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { Trash2 } from "lucide-react";
 
 /**
  * Right-hand drawer. Used two ways:
@@ -11,9 +12,9 @@ import { useTranslations } from "next-intl";
  * Cancel and Save live in the top-right of the drawer header; Save submits the form with id `formId`.
  */
 export function DrawerShell({
-  title, intercepted, closeHref, formId, submitLabel, children,
+  title, intercepted, closeHref, formId, submitLabel, onDelete, children,
 }: {
-  title: string; intercepted: boolean; closeHref: string; formId?: string; submitLabel?: string; children: React.ReactNode;
+  title: string; intercepted: boolean; closeHref: string; formId?: string; submitLabel?: string; onDelete?: React.ReactNode; children: React.ReactNode;
 }) {
   const router = useRouter();
   const t = useTranslations("common");
@@ -48,7 +49,8 @@ export function DrawerShell({
       <aside className="drawer-panel relative flex h-full w-full max-w-xl flex-col bg-bg shadow-2xl">
         <header className="flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-3">
           <h1 className="text-lg font-semibold">{title}</h1>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            {onDelete}
             <button type="button" className="btn btn-sm" onClick={() => closeRef.current()}>{t("cancel")}</button>
             {formId && (
               <button type="submit" form={formId} disabled={saving} className="btn btn-sm btn-primary">{submitLabel ?? t("save")}</button>
@@ -74,6 +76,26 @@ export function DrawerActionForm({
       }}
     >
       {children}
+    </form>
+  );
+}
+
+/** Trash icon for the drawer header (left of Cancel). Confirms, runs the server action, then closes the drawer. */
+export function DrawerDeleteButton({
+  action, intercepted, message, label,
+}: { action: () => Promise<void>; intercepted: boolean; message: string; label: string }) {
+  const router = useRouter();
+  return (
+    <form
+      action={async () => {
+        await action();
+        if (intercepted) router.back();
+      }}
+      onSubmit={(e) => { if (!window.confirm(message)) e.preventDefault(); }}
+    >
+      <button type="submit" aria-label={label} title={label} className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted hover:border-danger hover:text-danger">
+        <Trash2 size={15} />
+      </button>
     </form>
   );
 }

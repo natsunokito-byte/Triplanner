@@ -8,8 +8,8 @@ export type InvitePlan = {
 };
 
 export const TYPE_LABEL: Record<InviteLocale, Record<string, string>> = {
-  "zh-TW": { breakfast: "早餐", lunch: "午餐", dinner: "晚餐", tea: "下午茶", workshop: "工作坊", cosplay_photoshoot: "Cosplay 拍攝", date: "約會", hangout: "聚會", event: "活動", task: "任務", wake_up: "起床" },
-  en: { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", tea: "Tea", workshop: "Workshop", cosplay_photoshoot: "Cosplay photoshoot", date: "Date", hangout: "Hangout", event: "Event", task: "Task", wake_up: "Wake up" },
+  "zh-TW": { meal: "用餐", work: "工作", crunch: "修羅場", breakfast: "早餐", lunch: "午餐", dinner: "晚餐", tea: "下午茶", workshop: "工作坊", cosplay_photoshoot: "Cosplay 拍攝", date: "約會", hangout: "聚會", event: "活動", task: "任務", wake_up: "起床" },
+  en: { meal: "Meal", work: "Work", crunch: "Crunching", breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", tea: "Tea", workshop: "Workshop", cosplay_photoshoot: "Cosplay photoshoot", date: "Date", hangout: "Hangout", event: "Event", task: "Task", wake_up: "Wake up" },
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");

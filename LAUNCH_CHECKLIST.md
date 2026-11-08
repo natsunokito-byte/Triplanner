@@ -107,3 +107,4 @@
 - [ ] 再執行 `supabase/migrations/003_m14.sql`（M14，接在 002 之後；只跑一次）。
 - [ ] 再執行 `supabase/migrations/004_m15.sql`（M15，接在 003 之後；只跑一次）。
 - [ ] 再執行 `supabase/migrations/005_m16.sql`（M16，接在 004 之後；只跑一次）。
+- [ ] M17：先執行 `006a_m17_types.sql`，成功後在新的查詢執行 `006b_m17_data.sql`。

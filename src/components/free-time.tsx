@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { CheckCircle2 } from "lucide-react";
 import { SubmitButton } from "./submit-button";
 import { maxDurationMin, startOptions, type FreeSlot, type Interval } from "@/lib/availability";
-import { PLAN_TYPES } from "@/lib/plan-types";
+import { REQUEST_TYPES } from "@/lib/plan-types";
 import type { RequestState } from "@/app/v/[token]/actions";
 
 export type DayWindow = Interval & { day: string };
@@ -110,7 +110,7 @@ export function FreeTime({
             <label className="block space-y-1">
               <span className="text-xs text-muted">{t("type")}</span>
               <select name="type" className="input" defaultValue="hangout">
-                {PLAN_TYPES.map((k) => <option key={k} value={k}>{tp(`types.${k}`)}</option>)}
+                {REQUEST_TYPES.map((k) => <option key={k} value={k}>{tp(`types.${k}`)}</option>)}
               </select>
             </label>
             <label className="block space-y-1">

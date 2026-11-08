@@ -4,7 +4,7 @@
 create extension if not exists "pgcrypto";
 
 create type plan_type as enum
-  ('breakfast','lunch','dinner','tea','workshop','cosplay_photoshoot','date','hangout','event','task','wake_up');
+  ('breakfast','lunch','dinner','tea','workshop','cosplay_photoshoot','date','hangout','event','task','wake_up','meal','work','crunch');  -- breakfast/lunch/dinner/workshop are legacy (merged into meal / crunch)
 create type booking_status as enum ('confirmed','not_booked');
 create type commute_method as enum ('walk','train','subway','bus','taxi','flight','car','bike','other');
 create type payment_method as enum ('ticket','ic_card','cash');
@@ -88,6 +88,7 @@ create table plans (
   character_name text,
   photographer_name text,                              -- cosplay_photoshoot only
   photographer_fee numeric(12,2),                      -- cosplay_photoshoot only (plan currency)
+  has_meeting boolean not null default false,          -- work plans: meetings during this block (highlighted pill)
   plan_date date,                                      -- date known, time not decided (start_at null)
   plan_time time,                                      -- time known, date not decided (start_at null)
   studio_name text,                                    -- cosplay_photoshoot only
@@ -187,6 +188,7 @@ create table todos (
   hotel_id uuid references hotels(id) on delete cascade,
   commute_id uuid references commutes(id) on delete cascade,
   plan_id uuid references plans(id) on delete cascade,
+  is_task boolean not null default false,              -- to-do from a task/crunch plan (own tab on the to-do page)
   auto_generated boolean not null default false,       -- created by "not booked" / "ticket" rules
   sort int default 0
 );

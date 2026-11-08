@@ -54,7 +54,8 @@ export const TRIP_AVAIL_COLS =
 export type RequestInput = { name: string; type: string; startMs: number; durationMin: number; location: string; message: string };
 export type CreateResult = { ok: true } | { ok: false; error: "invalid" | "blocked" | "tooMany" | "pendingLimit" | "slotTaken" | "disabled" };
 
-const PLAN_TYPES = ["breakfast", "lunch", "dinner", "tea", "workshop", "cosplay_photoshoot", "date", "hangout", "event"];
+// Keep in sync with REQUEST_TYPES in plan-types.ts (not imported: that module pulls in icons). Legacy values stay accepted.
+const PLAN_TYPES: string[] = ["meal", "tea", "cosplay_photoshoot", "date", "hangout", "event", "breakfast", "lunch", "dinner", "workshop"];
 
 export async function createRequest(db: SupabaseClient, trip: AvailTrip, emailRaw: string, input: RequestInput, verifiedAt = new Date()): Promise<CreateResult> {
   const email = normalizeEmail(emailRaw);

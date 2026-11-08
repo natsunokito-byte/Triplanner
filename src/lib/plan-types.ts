@@ -1,11 +1,22 @@
-import { Coffee, Utensils, UtensilsCrossed, CupSoda, Hammer, Sparkles, Heart, Users, Ticket, ListChecks, AlarmClock, type LucideIcon } from "lucide-react";
+import { Coffee, Utensils, UtensilsCrossed, CupSoda, Hammer, Sparkles, Heart, Users, Ticket, ListChecks, AlarmClock, Briefcase, Flame, type LucideIcon } from "lucide-react";
 
+// Every type that can exist in the database. breakfast/lunch/dinner were merged into "meal" and workshop into
+// "crunch" (migration 006); the legacy values stay valid so nothing breaks before the migration is run.
 export const PLAN_TYPES = [
-  "breakfast", "lunch", "dinner", "tea", "workshop", "cosplay_photoshoot", "date", "hangout", "event", "task", "wake_up",
+  "meal", "tea", "crunch", "work", "cosplay_photoshoot", "date", "hangout", "event", "task", "wake_up",
+  "breakfast", "lunch", "dinner", "workshop",
 ] as const;
 export type PlanType = (typeof PLAN_TYPES)[number];
 
+/** Offered in the plan form. wake_up is not a regular plan (set from the day column); legacy values are gone from the UI. */
+export const SELECTABLE_TYPES: readonly PlanType[] = ["meal", "tea", "crunch", "work", "cosplay_photoshoot", "date", "hangout", "event", "task"];
+/** Types a visitor may request through "Make a plan". */
+export const REQUEST_TYPES: readonly PlanType[] = ["meal", "tea", "cosplay_photoshoot", "date", "hangout", "event"];
+/** Types whose to-dos are "task to-dos" (shown in their own tab on the to-do page). */
+export const TASK_TODO_TYPES: readonly PlanType[] = ["task", "crunch"];
+
 export const PLAN_ICON: Record<PlanType, LucideIcon> = {
+  meal: Utensils, work: Briefcase, crunch: Flame,
   breakfast: Coffee, lunch: Utensils, dinner: UtensilsCrossed, tea: CupSoda, workshop: Hammer,
   cosplay_photoshoot: Sparkles, date: Heart, hangout: Users, event: Ticket, task: ListChecks, wake_up: AlarmClock,
 };

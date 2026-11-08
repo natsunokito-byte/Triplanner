@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { UsdHint } from "./fx";
-import { PLAN_ICON, PLAN_TYPES, VISIBILITIES, ptVars, type PlanType, type Visibility } from "@/lib/plan-types";
+import { PLAN_ICON, SELECTABLE_TYPES, TASK_TODO_TYPES, VISIBILITIES, ptVars, type PlanType, type Visibility } from "@/lib/plan-types";
 import { formatHours, hoursToMinutes, planTotal } from "@/lib/cost";
 import { Plus, X } from "lucide-react";
 import type { Person, Plan } from "@/lib/types";
@@ -80,6 +80,26 @@ export function PlanForm({
   const patchTodo = (i: number, patch: Partial<TodoLine>) => setTodoLines(todoLines.map((x, k) => (k === i ? { ...x, ...patch } : x)));
   const cleanTodos = todoLines.filter((x) => x.title.trim() !== "").map((x) => ({ title: x.title.trim(), cat: x.cat }));
 
+  const todoBlock = (
+      <fieldset hidden={isWake} className="space-y-2">
+        <legend className="label">{TASK_TODO_TYPES.includes(type) ? t("taskTodos") : t("planTodos")}</legend>
+        <input type="hidden" name="new_todos" value={JSON.stringify(cleanTodos)} />
+        {todoLines.map((x, i) => (
+          <div key={i} className={`grid items-center gap-2 ${categories.length > 0 ? "grid-cols-[1fr_8rem_auto]" : "grid-cols-[1fr_auto]"}`}>
+            <input className="input" maxLength={200} placeholder={t("planTodoPh")} value={x.title} onChange={(e) => patchTodo(i, { title: e.target.value })} />
+            {categories.length > 0 ? (
+              <select className="input" value={x.cat} onChange={(e) => patchTodo(i, { cat: e.target.value })} aria-label={t("todoCategory")}>
+                <option value="b:auto">{t("uncategorized")}</option>
+                {categories.map((c) => <option key={c.id} value={`c:${c.id}`}>{c.name}</option>)}
+              </select>
+            ) : <span />}
+            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")} onClick={() => setTodoLines(todoLines.filter((_, k) => k !== i))}><X size={14} /></button>
+          </div>
+        ))}
+        <button type="button" className="btn btn-sm" onClick={() => setTodoLines([...todoLines, { title: "", cat: "b:auto" }])}><Plus size={14} /> {t("addPlanTodo")}</button>
+      </fieldset>
+  );
+
   return (
     <form
       id={formId}
@@ -94,7 +114,7 @@ export function PlanForm({
         <legend className="label">{t("type")}</legend>
         <input type="hidden" name="type" value={type} />
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-          {PLAN_TYPES.map((k) => {
+          {SELECTABLE_TYPES.map((k) => {
             const Icon = PLAN_ICON[k];
             const c = ptVars(k);
             const on = type === k;
@@ -172,13 +192,15 @@ export function PlanForm({
           <input type="hidden" name="duration_min" value={Number.isFinite(duration) ? duration : ""} />
         </div>
         <div hidden={isWake} className="col-span-2 flex flex-wrap items-center gap-2">
-          {[0.5, 1, 1.5, 2, 3, 4].map((h) => (
+          {(type === "work" ? [4, 8] : [0.5, 1, 1.5, 2, 3, 4]).map((h) => (
             <button key={h} type="button" className={`chip ${Number(hours) === h ? "" : "!bg-surface-2 !text-muted"}`} onClick={() => setHours(String(h))}>{h}</button>
           ))}
           <span className="text-xs text-muted">{t("durationHint")} · {t("tzNote", { tz })}</span>
         </div>
         {badDuration && !isWake && <p className="col-span-2 text-xs text-danger">{t("timeError")}</p>}
       </div>
+
+      {type === "crunch" && todoBlock}
 
       <div>
         <label className="label">{t("visibility")}</label>
@@ -245,23 +267,14 @@ export function PlanForm({
         )}
       </fieldset>
 
-      <fieldset hidden={isWake} className="space-y-2">
-        <legend className="label">{t("planTodos")}</legend>
-        <input type="hidden" name="new_todos" value={JSON.stringify(cleanTodos)} />
-        {todoLines.map((x, i) => (
-          <div key={i} className={`grid items-center gap-2 ${categories.length > 0 ? "grid-cols-[1fr_8rem_auto]" : "grid-cols-[1fr_auto]"}`}>
-            <input className="input" maxLength={200} placeholder={t("planTodoPh")} value={x.title} onChange={(e) => patchTodo(i, { title: e.target.value })} />
-            {categories.length > 0 ? (
-              <select className="input" value={x.cat} onChange={(e) => patchTodo(i, { cat: e.target.value })} aria-label={t("todoCategory")}>
-                <option value="b:auto">{t("uncategorized")}</option>
-                {categories.map((c) => <option key={c.id} value={`c:${c.id}`}>{c.name}</option>)}
-              </select>
-            ) : <span />}
-            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={t("removeItem")} onClick={() => setTodoLines(todoLines.filter((_, k) => k !== i))}><X size={14} /></button>
-          </div>
-        ))}
-        <button type="button" className="btn btn-sm" onClick={() => setTodoLines([...todoLines, { title: "", cat: "b:auto" }])}><Plus size={14} /> {t("addPlanTodo")}</button>
-      </fieldset>
+      {type !== "crunch" && todoBlock}
+
+      {type === "work" && (
+        <label className="flex items-center gap-2 rounded-[8px] border border-border px-3 py-2">
+          <input type="checkbox" name="has_meeting" defaultChecked={plan?.has_meeting ?? false} />
+          <span>{t("hasMeeting")}</span>
+        </label>
+      )}
 
       <div hidden={isWake}>
         <label className="label" htmlFor="link">{t("link")}</label>

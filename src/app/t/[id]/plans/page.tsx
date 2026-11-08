@@ -26,7 +26,7 @@ export default async function PlanOverview({
   const supabase = await createClient();
   const [{ data: tripRow }, { data: planRows }] = await Promise.all([
     supabase.from("trips").select("*").eq("id", id).maybeSingle(),
-    supabase.from("plans").select("*").eq("trip_id", id).order("start_at", { nullsFirst: false }),
+    supabase.from("plans").select("*").eq("trip_id", id).neq("type", "wake_up").order("start_at", { nullsFirst: false }),
   ]);
   if (!tripRow) notFound();
   const trip = tripRow as Trip;

@@ -49,7 +49,7 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
   const nameOf = new Map((peopleRows ?? []).map((p) => [p.id as string, p.name as string]));
   const boardPlans: BoardPlan[] = ((planRows ?? []) as Plan[]).filter((p) => !isUnscheduled(p)).map((p) => ({
     id: p.id, type: p.type, title: p.title, location_name: p.location_name, start_at: p.start_at, plan_date: p.plan_date,
-    photographer_name: p.photographer_name, studio_name: p.studio_name,
+    photographer_name: p.photographer_name, studio_name: p.studio_name, has_meeting: p.has_meeting,
     duration_min: p.duration_min, visibility: p.visibility, completed: p.completed,
     cost: p.cost == null ? null : Number(p.cost), cost_currency: p.cost_currency, usd_frozen: p.usd_per_unit_at_completion == null ? null : Number(p.usd_per_unit_at_completion),
     people: (ppRows ?? []).filter((r) => r.plan_id === p.id && nameOf.has(r.person_id)).map((r) => ({ id: r.person_id as string, name: nameOf.get(r.person_id)! })),

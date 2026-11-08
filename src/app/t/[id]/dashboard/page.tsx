@@ -1,21 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { ArrowLeft, ExternalLink, Check, Circle, Trash2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { BarList, type BarItem } from "@/components/bar-list";
 import { CurrencyToggle, FxProvider, Money } from "@/components/fx";
 import { DashboardExport } from "@/components/dashboard-export";
 import { Scoreboard, type ScoreEntry } from "@/components/scoreboard";
-import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
 import { getLatestRates } from "@/lib/fx";
 import { toTrip, type FxCtx } from "@/lib/money";
 import { NON_ACTIVITY, PLAN_TYPES } from "@/lib/plan-types";
-import { addGeneralTodo, deleteGeneralTodo, toggleDashTodo } from "@/app/actions";
+import { groupByDate, todoDate } from "@/lib/todo-groups";
+import { localDate } from "@/lib/tz";
 import type { Commute, Hotel, Person, Plan, Todo, Trip } from "@/lib/types";
 
-const CATS = ["hotel", "ticket", "cosplay", "plan", "general"] as const;
 
 export default async function Dashboard({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -85,10 +84,9 @@ export default async function Dashboard({ params }: { params: Promise<{ id: stri
 
   // ── todos ──
   const doneCount = todos.filter((x) => x.done).length;
-  const byCat = new Map<string, Todo[]>();
-  for (const x of todos) byCat.set(x.category, [...(byCat.get(x.category) ?? []), x]);
-  const todoHref = (x: Todo) =>
-    x.hotel_id ? `/t/${id}/hotels/${x.hotel_id}` : x.commute_id ? `/t/${id}/commutes/${x.commute_id}` : x.plan_id ? `/t/${id}/plans/${x.plan_id}` : null;
+  // No default categories: to-dos are summarised by date (own due date, else the plan's date).
+  const planDates = new Map<string, string | null>(plans.map((p) => [p.id, p.start_at ? localDate(p.start_at, trip.timezone) : p.plan_date]));
+  const todoByDate = groupByDate(todos, (x) => todoDate(x, planDates));
 
   // ── scoreboard (completed plans only, everyone except me) ──
   const others = people.filter((p) => !p.is_me).map((p) => ({ id: p.id, name: p.name }));
@@ -102,10 +100,7 @@ export default async function Dashboard({ params }: { params: Promise<{ id: stri
     title: trip.title, watermark: `${trip.title} · ${trip.start_date} – ${trip.end_date}`, currency: trip.currency,
     totalCost, completedCost: completedTotal, todosDone: doneCount, todosTotal: todos.length, hangoutMin,
     costRows: costItems.map((i) => ({ label: i.label, value: i.value })),
-    todoRows: CATS.map((cat) => {
-      const list = byCat.get(cat) ?? [];
-      return { label: t(`cats.${cat}`), done: list.filter((x) => x.done).length, total: list.length };
-    }).filter((r) => r.total > 0),
+    todoRows: todoByDate.map((g) => ({ label: g.date ?? t("noDate"), done: g.items.filter((x) => x.done).length, total: g.items.length })),
     people: others, entries,
   };
   const te = await getTranslations("export");
@@ -166,55 +161,25 @@ export default async function Dashboard({ params }: { params: Promise<{ id: stri
 
         <section className="space-y-3">
           <div className="flex items-center justify-between"><h2 className="text-base font-semibold">{t("todos")}</h2><Link href={`/t/${id}/todos`} className="text-sm text-primary hover:underline">{t("openTodoPage")}</Link></div>
-          {CATS.map((cat) => {
-            const list = byCat.get(cat) ?? [];
-            if (list.length === 0 && cat !== "general") return null;
-            const done = list.filter((x) => x.done).length;
-            return (
-              <div key={cat} className="card p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium">{t(`cats.${cat}`)}</h3>
-                  <span className="text-xs text-muted tabular-nums">{t("todoProgress", { done, total: list.length })}</span>
-                </div>
-                {list.length > 0 && (
-                  <div className="h-1 overflow-hidden rounded-full bg-primary-soft" aria-hidden>
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${(done / list.length) * 100}%` }} />
-                  </div>
-                )}
-                {list.length === 0 ? (
-                  <p className="text-muted">{t("noTodos")}</p>
-                ) : (
-                  <ul>
-                    {list.map((x) => {
-                      const href = todoHref(x);
-                      return (
-                        <li key={x.id} className="flex items-center gap-2">
-                          <form action={toggleDashTodo.bind(null, id, x.id, !x.done)}>
-                            <button className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2" aria-label={x.done ? "undo" : "done"}>
-                              {x.done ? <Check size={18} className="text-success" /> : <Circle size={18} className="text-muted" />}
-                            </button>
-                          </form>
-                          <span className={`flex-1 ${x.done ? "text-muted line-through" : ""}`}>{x.title}</span>
-                          {href && <Link href={href} className="text-muted hover:text-text" aria-label={t("open")}><ExternalLink size={14} /></Link>}
-                          {x.category === "general" && (
-                            <form action={deleteGeneralTodo.bind(null, id, x.id)}>
-                              <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label="delete"><Trash2 size={14} /></button>
-                            </form>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-                {cat === "general" && (
-                  <form action={addGeneralTodo.bind(null, id)} className="flex gap-2 border-t border-border pt-3">
-                    <input name="title" className="input" required maxLength={200} placeholder={t("generalPh")} />
-                    <SubmitButton className="shrink-0">{t("addGeneral")}</SubmitButton>
-                  </form>
-                )}
+          <div className="card space-y-3 p-4">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">{t("todoProgress", { done: doneCount, total: todos.length })}</span>
+            </div>
+            {todos.length > 0 && (
+              <div className="h-1 overflow-hidden rounded-full bg-primary-soft" aria-hidden>
+                <div className="h-full rounded-full bg-primary" style={{ width: `${(doneCount / todos.length) * 100}%` }} />
               </div>
-            );
-          })}
+            )}
+            {todos.length === 0 && <p className="text-muted">{t("noTodos")}</p>}
+            <ul className="space-y-1">
+              {todoByDate.map((g) => (
+                <li key={g.date ?? "none"} className="flex items-center justify-between text-sm">
+                  <span>{g.date ?? t("noDate")}</span>
+                  <span className="text-xs tabular-nums text-muted">{t("todoProgress", { done: g.items.filter((x) => x.done).length, total: g.items.length })}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </section>
       </main>
     </FxProvider>

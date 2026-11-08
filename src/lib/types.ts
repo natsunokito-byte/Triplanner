@@ -45,6 +45,8 @@ export type Todo = {
   trip_id: string;
   category: "hotel" | "ticket" | "cosplay" | "plan" | "general";
   category_id: string | null;
+  is_task: boolean;
+  due_date: string | null;
   title: string;
   done: boolean;
   hotel_id: string | null;
@@ -65,6 +67,7 @@ export type Plan = {
   location_address: string | null;
   start_at: string | null; // null = date and/or time not decided
   plan_date: string | null; // date known, no time
+  has_meeting: boolean;
   plan_time: string | null; // time known, no date ('HH:MM:SS')
   studio_name: string | null;
   duration_min: number;

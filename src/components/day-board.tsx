@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useMemo, useOptimistic, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import type { LucideIcon } from "lucide-react";
-import { AlertTriangle, Building2, Camera, Check, Copy, EyeOff, MapPin, Plus } from "lucide-react";
+import { AlertTriangle, Building2, Camera, Check, Copy, EyeOff, Users, MapPin, Plus } from "lucide-react";
+import { WakeUpButton } from "./wake-up-button";
 import { duplicatePlanToSameDay, movePlanToDay, setPlanCompleted } from "@/app/actions";
 import { METHOD_ICON, type Method, type Payment } from "@/lib/commute";
 import { Money, useFx } from "./fx";
@@ -17,6 +18,7 @@ export type BoardPlan = {
   type: PlanType;
   title: string;
   location_name: string | null;
+  has_meeting?: boolean;
   photographer_name?: string | null;
   studio_name?: string | null;
   start_at: string | null; // null = date known, time TBD (plan_date)
@@ -132,7 +134,12 @@ export function DayBoard({
                           {p.visibility !== "normal" && <EyeOff size={12} className="ml-auto" aria-label={t("private")} />}
                         </div>
                         <div className={`mt-0.5 font-semibold leading-snug ${p.completed ? "line-through" : ""}`}>{p.title}</div>
-                        <div className="mt-0.5 inline-block rounded-full px-2 text-[11px]" style={{ background: c.bg, color: c.fg }}>{t(`types.${p.type}`)}</div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                          <span className="inline-block rounded-full px-2 text-[11px]" style={{ background: c.bg, color: c.fg }}>{t(`types.${p.type}`)}</span>
+                          {p.has_meeting && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-warning px-2 text-[11px] font-semibold text-white"><Users size={11} />{t("meetingPill")}</span>
+                          )}
+                        </div>
                         {p.location_name && (
                           <div className="mt-1 flex items-center gap-1 text-xs text-muted"><MapPin size={12} className="shrink-0" /><span className="truncate">{p.location_name}</span></div>
                         )}
@@ -235,14 +242,27 @@ export function DayBoard({
               </div>
 
               <ul className="flex flex-1 flex-col gap-2 p-2">
-                {wakes.map((p) => (
-                  <li key={p.id}>{renderCard(p, d, PLAN_ICON[p.type], ptVars(p.type), hm.format(Date.parse(p.start_at!)))}</li>
-                ))}
-                {dayPlans.length === 0 && <li className="py-6 text-center text-xs text-muted">{t("dayEmpty")}</li>}
+                <li className="flex flex-wrap items-center justify-center gap-2">
+                  {list[0] && (
+                    <span className="[&>a]:!mx-0 [&>a]:!mt-0">
+                      {pill(
+                        commutes.find((x) => x.from_plan_id === null && x.to_plan_id === list[0].id),
+                        `/t/${tripId}/commutes/new?to=${list[0].id}`,
+                        tc("addFromHotel"),
+                      )}
+                    </span>
+                  )}
+                  <WakeUpButton
+                    key={`${d}-${wakes[0]?.start_at ?? "none"}`}
+                    tripId={tripId}
+                    date={d}
+                    current={wakes[0] ? { id: wakes[0].id, time: hm.format(Date.parse(wakes[0].start_at!)) } : null}
+                  />
+                </li>
+                {dayPlans.filter((p) => p.type !== "wake_up").length === 0 && <li className="py-6 text-center text-xs text-muted">{t("dayEmpty")}</li>}
                 {list.map((p, idx) => {
                   const next = list[idx + 1];
                   const link = next ? commutes.find((x) => x.from_plan_id === p.id && x.to_plan_id === next.id) : undefined;
-                  const firstLink = commutes.find((x) => x.from_plan_id === null && x.to_plan_id === p.id);
                   const lastLink = commutes.find((x) => x.from_plan_id === p.id && x.to_plan_id === null);
                   const Icon = PLAN_ICON[p.type];
                   const c = ptVars(p.type);
@@ -255,7 +275,6 @@ export function DayBoard({
                       {overlap && (
                         <div className="mb-1 flex items-center gap-1 text-[11px] text-warning"><AlertTriangle size={12} /> {t("overlap")}</div>
                       )}
-                      {idx === 0 && pill(firstLink, `/t/${tripId}/commutes/new?to=${p.id}`, tc("addFromHotel"), "mb-2")}
                       {renderCard(p, d, Icon, c, `${hm.format(startMs)}–${hm.format(endMs)}`)}
                       {next && pill(link, `/t/${tripId}/commutes/new?from=${p.id}&to=${next.id}`, tc("add"))}
                       {!next && pill(lastLink, `/t/${tripId}/commutes/new?from=${p.id}`, tc("addToHotel"))}

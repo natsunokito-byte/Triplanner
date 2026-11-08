@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Check, Circle, CircleCheck, Copy, Trash2 } from "lucide-react";
-import { ConfirmButton } from "@/components/confirm-button";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { InvitePanel } from "@/components/invite-panel";
 import { PlanReportExport } from "@/components/plan-report-export";
@@ -11,7 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addPlanTodo, deletePlan, duplicatePlan, deletePlanTodo, setPlanCompleted, togglePlanTodo, updatePlan } from "@/app/actions";
 import { headers } from "next/headers";
 import { hhmm } from "@/lib/schedule";
-import { DrawerShell, DrawerActionForm } from "@/components/drawer-shell";
+import { DrawerShell, DrawerDeleteButton } from "@/components/drawer-shell";
 import { fmtMoney } from "@/lib/money";
 import { utcToLocal } from "@/lib/tz";
 import type { Person, Plan, Todo, Trip } from "@/lib/types";
@@ -53,7 +52,7 @@ export async function EditPlanContent({ id, planId, back, intercepted }: { id: s
   const recipients = peopleList.filter((p) => !p.is_me && onPlan.has(p.id)).map((p) => p.name);
 
   return (
-    <DrawerShell title={t("editTitle")} intercepted={intercepted} closeHref={back} formId="plan-form" submitLabel={c("save")}>
+    <DrawerShell title={t("editTitle")} intercepted={intercepted} closeHref={back} formId="plan-form" submitLabel={c("save")} onDelete={<DrawerDeleteButton action={deletePlan.bind(null, id, planId, intercepted ? "close" : back)} intercepted={intercepted} message={t("deleteConfirm")} label={t("deletePlan")} />}>
         <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex gap-2">
             <form action={duplicatePlan.bind(null, id, planId)}>
@@ -153,11 +152,6 @@ export async function EditPlanContent({ id, planId, back, intercepted }: { id: s
           )}
         </section>
 
-        <section className="card border-danger/40 p-5">
-          <DrawerActionForm action={deletePlan.bind(null, id, planId, intercepted ? "close" : back)} intercepted={intercepted}>
-            <ConfirmButton className="btn-danger" message={t("deleteConfirm")}>{t("deletePlan")}</ConfirmButton>
-          </DrawerActionForm>
-        </section>
     </DrawerShell>
   );
 }

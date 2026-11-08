@@ -141,7 +141,10 @@
       "hangout": "Hangout",
       "event": "Event",
       "task": "Task",
-      "wake_up": "Wake up"
+      "wake_up": "Wake up",
+      "meal": "Meal",
+      "work": "Work",
+      "crunch": "Crunching"
     },
     "add": "Add plan",
     "newTitle": "Add plan",
@@ -246,7 +249,12 @@
     "noDateNoTime": "No date, no time",
     "noTime": "No time",
     "uncategorized": "Uncategorized",
-    "createShort": "Create"
+    "createShort": "Create",
+    "taskTodos": "To-dos (tasks)",
+    "hasMeeting": "There are meetings in this block",
+    "meetingPill": "Meetings",
+    "wakeUp": "Wake-up time",
+    "wakeClear": "Clear"
   },
   "commute": {
     "methods": {
@@ -360,7 +368,8 @@
     "colName": "Name",
     "colValue": "Value",
     "back": "Back to trip",
-    "openTodoPage": "Open to-do page →"
+    "openTodoPage": "Open to-do page →",
+    "noDate": "No date"
   },
   "viewer": {
     "title": "Trip itinerary",
@@ -513,6 +522,12 @@
     "addCategory": "Add category",
     "deleteCategoryConfirm": "Delete this category? Its to-dos are kept and become \"Uncategorized\".",
     "link": "To-dos",
-    "uncategorized": "Uncategorized"
+    "uncategorized": "Uncategorized",
+    "taskTab": "To-dos (tasks)",
+    "noDate": "No date",
+    "groupBy": "Group by",
+    "byDate": "Date",
+    "byCategory": "Category",
+    "addTask": "Add a task to-do"
   }
 }

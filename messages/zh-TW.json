@@ -141,7 +141,10 @@
       "hangout": "聚會",
       "event": "活動",
       "task": "任務",
-      "wake_up": "起床"
+      "wake_up": "起床",
+      "meal": "用餐",
+      "work": "工作",
+      "crunch": "修羅場"
     },
     "add": "新增行程",
     "newTitle": "新增行程",
@@ -246,7 +249,12 @@
     "noDateNoTime": "無日期、無時間",
     "noTime": "無時間",
     "uncategorized": "未分類",
-    "createShort": "建立"
+    "createShort": "建立",
+    "taskTodos": "待辦事項(任務)",
+    "hasMeeting": "這段時間有會議",
+    "meetingPill": "有會議",
+    "wakeUp": "起床時間",
+    "wakeClear": "清除"
   },
   "commute": {
     "methods": {
@@ -360,7 +368,8 @@
     "colName": "名稱",
     "colValue": "數值",
     "back": "返回旅行",
-    "openTodoPage": "開啟待辦頁 →"
+    "openTodoPage": "開啟待辦頁 →",
+    "noDate": "無日期"
   },
   "viewer": {
     "title": "旅行行程",
@@ -513,6 +522,12 @@
     "addCategory": "新增分類",
     "deleteCategoryConfirm": "刪除這個分類？裡面的待辦不會被刪除，會變成「未分類」。",
     "link": "待辦事項",
-    "uncategorized": "未分類"
+    "uncategorized": "未分類",
+    "taskTab": "待辦事項(任務)",
+    "noDate": "無日期",
+    "groupBy": "分組",
+    "byDate": "日期",
+    "byCategory": "分類",
+    "addTask": "新增任務待辦"
   }
 }

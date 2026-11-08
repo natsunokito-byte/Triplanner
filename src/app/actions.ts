@@ -9,7 +9,7 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { localDate, localToUtc, utcToLocal } from "@/lib/tz";
 import { rateForDay } from "@/lib/fx";
-import { PLAN_TYPES, VISIBILITIES } from "@/lib/plan-types";
+import { PLAN_TYPES, TASK_TODO_TYPES, VISIBILITIES, type PlanType } from "@/lib/plan-types";
 import { planTotal, type CostItem } from "@/lib/cost";
 import { resolveSchedule, safeBack } from "@/lib/schedule";
 import { METHODS, PAYMENTS } from "@/lib/commute";
@@ -314,6 +314,7 @@ const planSchema = z.object({
     .max(30),
   photographer_name: optText(120),
   studio_name: optText(120),
+  has_meeting: z.boolean(),
   photographer_fee: z.string().trim().transform((s) => (s === "" ? null : Number(s))).pipe(z.number().min(0).max(1e9).nullable()),
   studio_fee: z.string().trim().transform((s) => (s === "" ? null : Number(s))).pipe(z.number().min(0).max(1e9).nullable()),
   new_todos: z.array(z.object({ title: z.string().trim().min(1).max(200), cat: z.string().max(60) })).max(30),
@@ -358,6 +359,7 @@ async function parsePlan(supabase: Awaited<ReturnType<typeof createClient>>, tri
     cost_items: isWake ? [] : jsonField("cost_items"),
     photographer_name: String(fd.get("photographer_name") ?? ""),
     studio_name: String(fd.get("studio_name") ?? ""),
+    has_meeting: fd.get("has_meeting") === "on",
     photographer_fee: String(fd.get("photographer_fee") ?? ""),
     studio_fee: String(fd.get("studio_fee") ?? ""),
     new_todos: jsonField("new_todos"),
@@ -385,6 +387,7 @@ async function parsePlan(supabase: Awaited<ReturnType<typeof createClient>>, tri
       ...rest,
       photographer_name: isCosplay ? rest.photographer_name : null,
       studio_name: isCosplay ? rest.studio_name : null,
+      has_meeting: rest.type === "work" ? rest.has_meeting : false,
       photographer_fee,
       studio_fee,
       // plans.cost is always the computed total (server-side; the client preview is advisory only)
@@ -432,7 +435,7 @@ async function insertPlanTodos(
     const custom = x.cat.startsWith("c:") && valid.has(x.cat.slice(2)) ? x.cat.slice(2) : null;
     // Uncategorised ("b:auto"): internal category only — cosplay checklist items stay in the plan's checklist.
     const category = custom ? "general" : planType === "cosplay_photoshoot" ? "cosplay" : "plan";
-    return { trip_id: tripId, plan_id: planId, title: x.title, category, category_id: custom, sort: i };
+    return { trip_id: tripId, plan_id: planId, title: x.title, category, category_id: custom, sort: i, is_task: TASK_TODO_TYPES.includes(planType as PlanType) };
   });
   const { error } = await supabase.from("todos").insert(rows);
   if (error) throw new Error(error.message);
@@ -839,7 +842,7 @@ export async function addTodoItem(tripId: string, fd: FormData) {
     const { data } = await supabase.from("todo_categories").select("id").eq("id", cat.slice(2)).eq("trip_id", tripId).maybeSingle();
     category_id = data?.id ?? null;
   }
-  const { error } = await supabase.from("todos").insert({ trip_id: tripId, category: "general", category_id, title, due_date: due });
+  const { error } = await supabase.from("todos").insert({ trip_id: tripId, category: "general", category_id, title, due_date: due, is_task: fd.get("task") === "1" });
   if (error) throw new Error(error.message);
   revalidatePath(todoPath(tripId));
 }
@@ -873,4 +876,37 @@ export async function deleteTodoItem(tripId: string, todoId: string) {
   const { error } = await supabase.from("todos").delete().eq("id", todoId).eq("trip_id", tripId).eq("auto_generated", false);
   if (error) throw new Error(error.message);
   revalidatePath(todoPath(tripId));
+}
+
+
+// ───────────────────────── Wake-up time (special plan, one per day) ─────────────────────────
+/** Set (or change) the wake-up time of a trip-local day. Stored as a plan of type wake_up; never shown as a regular plan. */
+export async function setWakeUp(tripId: string, date: string, time: string) {
+  const { supabase } = await requireUser();
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/).parse(date);
+  z.string().regex(/^\d{2}:\d{2}$/).parse(time);
+  const { data: trip } = await supabase.from("trips").select("timezone").eq("id", tripId).single();
+  if (!trip) throw new Error("trip not found");
+  const next = new Date(Date.parse(`${date}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
+  const dayStart = localToUtc(`${date}T00:00`, trip.timezone).toISOString();
+  const dayEnd = localToUtc(`${next}T00:00`, trip.timezone).toISOString();
+  const start_at = localToUtc(`${date}T${time}`, trip.timezone).toISOString();
+  const { data: existing } = await supabase
+    .from("plans").select("id").eq("trip_id", tripId).eq("type", "wake_up").gte("start_at", dayStart).lt("start_at", dayEnd).limit(1).maybeSingle();
+  if (existing) {
+    const { error } = await supabase.from("plans").update({ start_at }).eq("id", existing.id);
+    if (error) throw new Error(error.message);
+  } else {
+    const tp = await getTranslations("plan");
+    const { error } = await supabase.from("plans").insert({ trip_id: tripId, type: "wake_up", title: tp("types.wake_up"), start_at, duration_min: 30, visibility: "normal" });
+    if (error) throw new Error(error.message);
+  }
+  revalidatePath(`/t/${tripId}`, "layout");
+}
+
+export async function clearWakeUp(tripId: string, planId: string) {
+  const { supabase } = await requireUser();
+  const { error } = await supabase.from("plans").delete().eq("id", planId).eq("trip_id", tripId).eq("type", "wake_up");
+  if (error) throw new Error(error.message);
+  revalidatePath(`/t/${tripId}`, "layout");
 }

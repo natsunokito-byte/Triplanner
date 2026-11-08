@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowLeft, Check, Circle, ExternalLink, Trash2 } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { ConfirmButton } from "@/components/confirm-button";
@@ -9,56 +9,82 @@ import { createClient } from "@/lib/supabase/server";
 import {
   addTodoItem, createTodoCategory, deleteTodoCategory, deleteTodoItem, moveTodoItem, renameTodoCategory, toggleTodoItem,
 } from "@/app/actions";
+import { groupByDate, todoDate } from "@/lib/todo-groups";
+import { localDate } from "@/lib/tz";
 import type { Todo } from "@/lib/types";
+
+type Tab = "open" | "done" | "task";
 
 export default async function TodosPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; cat?: string }>;
+  searchParams: Promise<{ tab?: string; status?: string; cat?: string; group?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const tab = sp.tab === "done" ? "done" : "open";
+  const tab: Tab = sp.tab === "done" ? "done" : sp.tab === "task" ? "task" : "open";
+  const taskStatus = sp.status === "done" ? "done" : "open";
   const t = await getTranslations("todos");
   const c = await getTranslations("common");
-  const dc = await getTranslations("dash");
+  const locale = await getLocale();
   const supabase = await createClient();
-  const [{ data: trip }, { data: catRows }, { data: todoRows }] = await Promise.all([
-    supabase.from("trips").select("id,title").eq("id", id).maybeSingle(),
+  const [{ data: trip }, { data: catRows }, { data: todoRows }, { data: planRows }] = await Promise.all([
+    supabase.from("trips").select("id,title,timezone").eq("id", id).maybeSingle(),
     supabase.from("todo_categories").select("id,name").eq("trip_id", id).order("position").order("name"),
-    supabase.from("todos").select("*").eq("trip_id", id).order("due_date", { nullsFirst: false }).order("title"),
+    supabase.from("todos").select("*").eq("trip_id", id).order("title"),
+    supabase.from("plans").select("id,start_at,plan_date").eq("trip_id", id),
   ]);
   if (!trip) notFound();
   const cats = (catRows ?? []) as { id: string; name: string }[];
-  const todos = (todoRows ?? []) as (Todo & { due_date: string | null })[];
-  const openCount = todos.filter((x) => !x.done).length;
-  const doneCount = todos.length - openCount;
-
-  // No default categories: grouping/filtering only exists once the user has created their own.
-  // Everything without a (still existing) custom category is "Uncategorised".
-  const keyOf = (x: Todo) => (x.category_id && cats.some((k) => k.id === x.category_id) ? `c:${x.category_id}` : "u");
+  const todos = (todoRows ?? []) as Todo[];
   const hasCats = cats.length > 0;
-  const groups = hasCats
-    ? [...cats.map((k) => ({ key: `c:${k.id}`, label: k.name })), { key: "u", label: t("uncategorized") }]
-    : [{ key: "u", label: "" }];
-  const shown = todos.filter((x) => (tab === "done" ? x.done : !x.done));
-  const filter = hasCats && sp.cat && groups.some((g) => g.key === sp.cat) ? sp.cat : null;
-  const href = (over: { tab?: string; cat?: string | null }) => {
+  const planDates = new Map<string, string | null>(
+    (planRows ?? []).map((p) => [p.id as string, p.start_at ? localDate(p.start_at as string, trip.timezone) : ((p.plan_date as string | null) ?? null)]),
+  );
+  const dateOf = (x: Todo) => todoDate(x, planDates);
+
+  const regular = todos.filter((x) => !x.is_task);
+  const tasks = todos.filter((x) => x.is_task);
+  const openCount = regular.filter((x) => !x.done).length;
+  const doneCount = regular.length - openCount;
+  const taskOpen = tasks.filter((x) => !x.done).length;
+
+  // "Uncategorised" = no (still existing) custom category. Custom categories only exist once the user makes them.
+  const catKeyOf = (x: Todo) => (x.category_id && cats.some((k) => k.id === x.category_id) ? `c:${x.category_id}` : "u");
+  const catGroups = [...cats.map((k) => ({ key: `c:${k.id}`, label: k.name })), { key: "u", label: t("uncategorized") }];
+  const filter = hasCats && sp.cat && catGroups.some((g) => g.key === sp.cat) ? sp.cat : null;
+  const groupMode: "date" | "cat" = hasCats && sp.group === "cat" ? "cat" : "date"; // date is the default
+
+  const base = tab === "task" ? tasks.filter((x) => (taskStatus === "done" ? x.done : !x.done)) : regular.filter((x) => (tab === "done" ? x.done : !x.done));
+  const shown = (filter ? base.filter((x) => catKeyOf(x) === filter) : base).sort((a, b) => (dateOf(a) ?? "9999").localeCompare(dateOf(b) ?? "9999") || a.title.localeCompare(b.title));
+
+  const href = (over: { tab?: Tab; status?: string; cat?: string | null; group?: string }) => {
     const q = new URLSearchParams();
     const tb = over.tab ?? tab;
-    if (tb === "done") q.set("tab", "done");
+    if (tb !== "open") q.set("tab", tb);
+    const st = over.status ?? taskStatus;
+    if (tb === "task" && st === "done") q.set("status", "done");
     const ct = over.cat === undefined ? filter : over.cat;
     if (ct) q.set("cat", ct);
+    const gp = over.group ?? groupMode;
+    if (gp === "cat") q.set("group", "cat");
     const s = q.toString();
     return `/t/${id}/todos${s ? `?${s}` : ""}`;
   };
   const srcHref = (x: Todo) =>
     x.hotel_id ? `/t/${id}/hotels/${x.hotel_id}` : x.commute_id ? `/t/${id}/commutes/${x.commute_id}` : x.plan_id ? `/t/${id}/plans/${x.plan_id}` : null;
+  const dayFmt = new Intl.DateTimeFormat(locale, { month: "numeric", day: "numeric", weekday: "short", timeZone: "UTC" });
+
+  const sections: { key: string; heading: string | null; items: Todo[] }[] =
+    groupMode === "date"
+      ? groupByDate(shown, dateOf).map((g) => ({ key: g.date ?? "none", heading: g.date ? dayFmt.format(new Date(g.date)) : t("noDate"), items: g.items }))
+      : catGroups.map((g) => ({ key: g.key, heading: g.label, items: shown.filter((x) => catKeyOf(x) === g.key) })).filter((g) => g.items.length > 0);
 
   const tabCls = (on: boolean) => `rounded-full px-4 py-1.5 text-sm ${on ? "bg-primary text-white" : "bg-surface-2 text-muted hover:text-text"}`;
   const chipCls = (on: boolean) => `chip ${on ? "" : "!bg-surface-2 !text-muted"}`;
+  const isTaskTab = tab === "task";
 
   return (
     <>
@@ -69,70 +95,83 @@ export default async function TodosPage({
           <h1 className="mt-1 text-[28px] font-semibold leading-tight">{trip.title} · {t("title")}</h1>
         </div>
 
-        <div className="flex gap-2" role="tablist">
+        <div className="flex flex-wrap gap-2" role="tablist">
           <Link role="tab" aria-selected={tab === "open"} href={href({ tab: "open" })} className={tabCls(tab === "open")}>{t("open")} ({openCount})</Link>
           <Link role="tab" aria-selected={tab === "done"} href={href({ tab: "done" })} className={tabCls(tab === "done")}>{t("done")} ({doneCount})</Link>
+          <Link role="tab" aria-selected={isTaskTab} href={href({ tab: "task" })} className={tabCls(isTaskTab)}>{t("taskTab")} ({taskOpen})</Link>
         </div>
 
-        {hasCats && <div className="flex flex-wrap gap-2">
-          <Link href={href({ cat: null })} className={chipCls(!filter)}>{t("all")}</Link>
-          {groups.map((g) => (
-            <Link key={g.key} href={href({ cat: g.key })} className={chipCls(filter === g.key)}>{g.label}</Link>
-          ))}
-        </div>}
+        {isTaskTab && (
+          <div className="flex gap-2">
+            <Link href={href({ status: "open" })} className={chipCls(taskStatus === "open")}>{t("open")}</Link>
+            <Link href={href({ status: "done" })} className={chipCls(taskStatus === "done")}>{t("done")}</Link>
+          </div>
+        )}
+
+        {hasCats && (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <Link href={href({ cat: null })} className={chipCls(!filter)}>{t("all")}</Link>
+              {catGroups.map((g) => (
+                <Link key={g.key} href={href({ cat: g.key })} className={chipCls(filter === g.key)}>{g.label}</Link>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted">
+              {t("groupBy")}
+              <Link href={href({ group: "date" })} className={chipCls(groupMode === "date")}>{t("byDate")}</Link>
+              <Link href={href({ group: "cat" })} className={chipCls(groupMode === "cat")}>{t("byCategory")}</Link>
+            </div>
+          </div>
+        )}
 
         {shown.length === 0 ? (
-          <p className="text-muted">{tab === "done" ? t("emptyDone") : t("emptyOpen")}</p>
+          <p className="text-muted">{tab === "done" || (isTaskTab && taskStatus === "done") ? t("emptyDone") : t("emptyOpen")}</p>
         ) : (
-          groups
-            .filter((g) => !filter || g.key === filter)
-            .map((g) => {
-              const list = shown.filter((x) => keyOf(x) === g.key);
-              if (list.length === 0) return null;
-              return (
-                <section key={g.key} className="card space-y-1 p-4">
-                  {hasCats && <h2 className="font-medium">{g.label} <span className="text-xs text-muted tabular-nums">{list.length}</span></h2>}
-                  <ul>
-                    {list.map((x) => {
-                      const src = srcHref(x);
-                      return (
-                        <li key={x.id} className="flex flex-wrap items-center gap-2">
-                          <form action={toggleTodoItem.bind(null, id, x.id, !x.done)}>
-                            <button className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2" aria-label={x.done ? t("reopen") : t("complete")}>
-                              {x.done ? <Check size={18} className="text-success" /> : <Circle size={18} className="text-muted" />}
-                            </button>
-                          </form>
-                          <span className={`min-w-0 flex-1 ${x.done ? "text-muted line-through" : ""}`}>
-                            {x.title}
-                            {x.due_date && <span className="ml-2 text-xs text-muted tabular-nums">{t("due", { d: x.due_date })}</span>}
-                          </span>
-                          {cats.length > 0 && (
-                            <form action={moveTodoItem.bind(null, id, x.id)} className="flex items-center gap-1">
-                              <select name="cat" defaultValue={keyOf(x) === "u" ? "b:none" : keyOf(x)} className="input !h-8 !w-auto !py-0 text-xs" aria-label={t("move")}>
-                                <option value="b:none">{t("uncategorized")}</option>
-                                {cats.map((k) => <option key={k.id} value={`c:${k.id}`}>{k.name}</option>)}
-                              </select>
-                              <button className="btn btn-sm">{t("move")}</button>
-                            </form>
-                          )}
-                          {src && <Link href={src} className="text-muted hover:text-text" aria-label={dc("open")}><ExternalLink size={14} /></Link>}
-                          {!x.auto_generated && (
-                            <form action={deleteTodoItem.bind(null, id, x.id)}>
-                              <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={c("delete")}><Trash2 size={14} /></button>
-                            </form>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              );
-            })
+          sections.map((g) => (
+            <section key={g.key} className="card space-y-1 p-4">
+              {g.heading && <h2 className="font-medium">{g.heading} <span className="text-xs text-muted tabular-nums">{g.items.length}</span></h2>}
+              <ul>
+                {g.items.map((x) => {
+                  const src = srcHref(x);
+                  return (
+                    <li key={x.id} className="flex flex-wrap items-center gap-2">
+                      <form action={toggleTodoItem.bind(null, id, x.id, !x.done)}>
+                        <button className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2" aria-label={x.done ? t("reopen") : t("complete")}>
+                          {x.done ? <Check size={18} className="text-success" /> : <Circle size={18} className="text-muted" />}
+                        </button>
+                      </form>
+                      <span className={`min-w-0 flex-1 ${x.done ? "text-muted line-through" : ""}`}>
+                        {x.title}
+                        {x.due_date && <span className="ml-2 text-xs text-muted tabular-nums">{t("due", { d: x.due_date })}</span>}
+                        {groupMode === "cat" && !x.due_date && dateOf(x) && <span className="ml-2 text-xs text-muted tabular-nums">{dateOf(x)}</span>}
+                      </span>
+                      {hasCats && (
+                        <form action={moveTodoItem.bind(null, id, x.id)} className="flex items-center gap-1">
+                          <select name="cat" defaultValue={catKeyOf(x) === "u" ? "b:none" : catKeyOf(x)} className="input !h-8 !w-auto !py-0 text-xs" aria-label={t("move")}>
+                            <option value="b:none">{t("uncategorized")}</option>
+                            {cats.map((k) => <option key={k.id} value={`c:${k.id}`}>{k.name}</option>)}
+                          </select>
+                          <button className="btn btn-sm">{t("move")}</button>
+                        </form>
+                      )}
+                      {src && <Link href={src} className="text-muted hover:text-text" aria-label={t("open")}><ExternalLink size={14} /></Link>}
+                      {!x.auto_generated && (
+                        <form action={deleteTodoItem.bind(null, id, x.id)}>
+                          <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-surface-2 hover:text-danger" aria-label={c("delete")}><Trash2 size={14} /></button>
+                        </form>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))
         )}
 
         <section className="card space-y-3 p-4">
-          <h2 className="font-semibold">{t("add")}</h2>
+          <h2 className="font-semibold">{isTaskTab ? t("addTask") : t("add")}</h2>
           <form action={addTodoItem.bind(null, id)} className={`grid grid-cols-1 gap-2 ${hasCats ? "sm:grid-cols-[1fr_9rem_9rem_auto]" : "sm:grid-cols-[1fr_9rem_auto]"}`}>
+            {isTaskTab && <input type="hidden" name="task" value="1" />}
             <input name="title" className="input" required maxLength={200} placeholder={t("titlePh")} />
             {hasCats ? (
               <select name="cat" className="input" defaultValue={filter?.startsWith("c:") ? filter : "b:none"} aria-label={t("category")}>
