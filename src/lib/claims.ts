@@ -61,10 +61,10 @@ async function notifyOwner(db: SupabaseClient, trip: ClaimTrip, name: string, pl
       to,
       proposal
         ? (zh ? `${name} 提議了行程「${planTitle}」（${trip.title}）` : `${name} proposed "${planTitle}" (${trip.title})`)
-        : (zh ? `${name} 想認領「${planTitle}」（${trip.title}）` : `${name} wants to join "${planTitle}" (${trip.title})`),
+        : (zh ? `${name} 想認養「${planTitle}」（${trip.title}）` : `${name} wants to join "${planTitle}" (${trip.title})`),
       proposal
-        ? (zh ? `${name} 提議了行程「${planTitle}」。\n到行程認領頁查看：${site}/t/${trip.id}/requests` : `${name} proposed the plan "${planTitle}".\nReview it here: ${site}/t/${trip.id}/requests`)
-        : (zh ? `${name} 想認領你的行程「${planTitle}」。\n到收件匣查看：${site}/t/${trip.id}/requests`
+        ? (zh ? `${name} 提議了行程「${planTitle}」。\n到行程認養頁查看：${site}/t/${trip.id}/requests` : `${name} proposed the plan "${planTitle}".\nReview it here: ${site}/t/${trip.id}/requests`)
+        : (zh ? `${name} 想認養你的行程「${planTitle}」。\n到收件匣查看：${site}/t/${trip.id}/requests`
            : `${name} would like to join your plan "${planTitle}".\nReview it here: ${site}/t/${trip.id}/requests`),
     );
   } catch { /* notification is best-effort */ }

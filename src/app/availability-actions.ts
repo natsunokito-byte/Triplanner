@@ -91,7 +91,7 @@ export async function decideClaim(tripId: string, claimId: string, _prev: Decide
       await supabase.from("plan_claims").update({ status: "declined", decided_at: now }).in("id", (others ?? []).map((o) => o.id as string));
       for (const o of (others ?? []).filter((x) => x.claimer_email)) {
         await sendMail(o.claimer_email as string, zh ? `關於「${plan.title}」：${trip.title}` : `About "${plan.title}": ${trip.title}`,
-          zh ? "這個行程已經有人認領了，謝謝你的興趣。" : "Someone else already joined this plan. Thanks for your interest.");
+          zh ? "這個行程已經有人認養了，謝謝你的興趣。" : "Someone else already joined this plan. Thanks for your interest.");
       }
     }
   }
@@ -107,11 +107,11 @@ export async function decideClaim(tripId: string, claimId: string, _prev: Decide
   }
 
   const subject = decision === "accept"
-    ? (zh ? `認領成功：${plan.title}` : `You're in: ${plan.title}`)
-    : (zh ? `關於你的認領：${plan.title}` : `About your request: ${plan.title}`);
+    ? (zh ? `認養成功：${plan.title}` : `You're in: ${plan.title}`)
+    : (zh ? `關於你的認養：${plan.title}` : `About your request: ${plan.title}`);
   const ics = decision === "accept" && plan.start_at ? `\n\n${zh ? "加入行事曆" : "Add to calendar"}: ${site}/api/ics/${plan.ics_token}` : "";
   const body = decision === "accept"
-    ? (zh ? `對方接受了你的認領：「${plan.title}」${when ? `，${when}（${trip.timezone}）` : "，時間確定後會再通知你"}。` : `Your request was accepted: "${plan.title}"${when ? `, ${when} (${trip.timezone})` : ". The time is not set yet; you'll hear when it is"}.`) + (reply ? `\n\n${reply}` : "") + ics
+    ? (zh ? `對方接受了你的認養：「${plan.title}」${when ? `，${when}（${trip.timezone}）` : "，時間確定後會再通知你"}。` : `Your request was accepted: "${plan.title}"${when ? `, ${when} (${trip.timezone})` : ". The time is not set yet; you'll hear when it is"}.`) + (reply ? `\n\n${reply}` : "") + ics
     : (zh ? "這次無法配合，謝謝你的興趣。" : "Thanks for asking — this time doesn't work out.") + (reply ? `\n\n${reply}` : "");
   // Best-effort: a mail failure must not undo the decision.
   if (claim.claimer_email) await sendMail(claim.claimer_email, subject, body);
