@@ -1,7 +1,7 @@
 "use client";
 
+import { AutosaveForm } from "./autosave-form";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, Plus, Sparkles, X } from "lucide-react";
 import { MAX_STOPS, legsOf, totalStay } from "@/lib/stops";
@@ -29,7 +29,6 @@ export function CommuteForm({
   initialStops?: { label: string; stay_min: number }[];
 }) {
   const t = useTranslations("commute");
-  const router = useRouter();
   const [origin, setOrigin] = useState<PlaceValue>(defaults.origin);
   const [dest, setDest] = useState<PlaceValue>(defaults.dest);
   const [method, setMethod] = useState<Method>(defaults.method);
@@ -84,15 +83,7 @@ export function CommuteForm({
   const badDuration = !Number.isFinite(duration) || duration < 0;
 
   return (
-    <form
-      id={formId}
-      action={async (fd) => {
-        if (badDuration) return;
-        await action(fd);
-        if (intercepted) router.back();
-      }}
-      className="space-y-5"
-    >
+    <AutosaveForm id={formId} action={action} intercepted={intercepted} blocked={badDuration} className="space-y-5">
       {(intercepted || back) && <input type="hidden" name="back" value={intercepted ? "close" : back} />}
       <input type="hidden" name="from_plan_id" value={fromPlanId ?? ""} />
       <input type="hidden" name="to_plan_id" value={toPlanId ?? ""} />
@@ -179,6 +170,6 @@ export function CommuteForm({
       </div>
 
       {!formId && <SubmitButton className={badDuration ? "pointer-events-none opacity-50" : ""}>{submitLabel}</SubmitButton>}
-    </form>
+    </AutosaveForm>
   );
 }

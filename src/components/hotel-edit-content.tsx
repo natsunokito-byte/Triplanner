@@ -24,7 +24,7 @@ export async function EditHotelContent({ id, hotelId, back, intercepted }: { id:
   const todos = (todoRows ?? []) as Todo[];
 
   return (
-    <DrawerShell title={t("editTitle")} intercepted={intercepted} closeHref={back} formId="hotel-form" submitLabel={c("save")} onDelete={<DrawerDeleteButton action={deleteHotel.bind(null, id, hotelId, intercepted ? "close" : back)} intercepted={intercepted} message={t("deleteConfirm")} label={t("deleteHotel")} />}>
+    <DrawerShell autosave title={t("editTitle")} intercepted={intercepted} closeHref={back} formId="hotel-form" submitLabel={c("save")} onDelete={<DrawerDeleteButton action={deleteHotel.bind(null, id, hotelId, intercepted ? "close" : back)} intercepted={intercepted} message={t("deleteConfirm")} label={t("deleteHotel")} />}>
         <div>
           <HotelForm
             formId="hotel-form"

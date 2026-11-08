@@ -25,7 +25,7 @@ export async function EditCommuteContent({ id, commuteId, back, intercepted }: {
   const todos = (todoRows ?? []) as Todo[];
 
   return (
-    <DrawerShell title={t("editTitle")} intercepted={intercepted} closeHref={back} formId="commute-form" submitLabel={c("save")} onDelete={<DrawerDeleteButton action={deleteCommute.bind(null, id, commuteId, intercepted ? "close" : back)} intercepted={intercepted} message={t("deleteConfirm")} label={t("deleteCommute")} />}>
+    <DrawerShell autosave title={t("editTitle")} intercepted={intercepted} closeHref={back} formId="commute-form" submitLabel={c("save")} onDelete={<DrawerDeleteButton action={deleteCommute.bind(null, id, commuteId, intercepted ? "close" : back)} intercepted={intercepted} message={t("deleteConfirm")} label={t("deleteCommute")} />}>
         <div>
           <CommuteForm
             formId="commute-form"

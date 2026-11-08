@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { AutosaveForm } from "./autosave-form";
 
 /** The single form behind the settings drawer's one Save button. Sections are passed in as children. */
 export function SettingsForm({
@@ -12,18 +12,10 @@ export function SettingsForm({
   formId: string;
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   return (
-    <form
-      id={formId}
-      className="space-y-6"
-      action={async (fd) => {
-        await action(fd);
-        if (intercepted) router.back();
-      }}
-    >
+    <AutosaveForm id={formId} className="space-y-6" action={action} intercepted={intercepted}>
       {(intercepted || back) && <input type="hidden" name="back" value={intercepted ? "close" : back} />}
       {children}
-    </form>
+    </AutosaveForm>
   );
 }

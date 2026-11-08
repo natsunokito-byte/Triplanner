@@ -1,7 +1,7 @@
 "use client";
 
+import { AutosaveForm } from "./autosave-form";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SubmitButton } from "./submit-button";
 import { CostFields } from "./fx";
@@ -30,7 +30,6 @@ export function HotelForm({
   back?: string;
 }) {
   const t = useTranslations("hotel");
-  const router = useRouter();
   const [ci, setCi] = useState(defaults.check_in);
   const [co, setCo] = useState(defaults.check_out);
   const [status, setStatus] = useState<Hotel["booking_status"]>(hotel?.booking_status ?? "not_booked");
@@ -39,15 +38,7 @@ export function HotelForm({
   const bad = !!ci && !!co && co <= ci;
 
   return (
-    <form
-      id={formId}
-      action={async (fd) => {
-        if (bad) return;
-        await action(fd);
-        if (intercepted) router.back();
-      }}
-      className="space-y-5"
-    >
+    <AutosaveForm id={formId} action={action} intercepted={intercepted} blocked={bad} className="space-y-5">
       {(intercepted || back) && <input type="hidden" name="back" value={intercepted ? "close" : back} />}
       <div>
         <label className="label" htmlFor="name">{t("name")}</label>
@@ -98,6 +89,6 @@ export function HotelForm({
       </div>
 
       {!formId && <SubmitButton className={bad ? "pointer-events-none opacity-50" : ""}>{submitLabel}</SubmitButton>}
-    </form>
+    </AutosaveForm>
   );
 }

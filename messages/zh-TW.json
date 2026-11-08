@@ -10,7 +10,12 @@
     "copy": "複製",
     "copied": "已複製",
     "settings": "設定",
-    "optional": "選填"
+    "optional": "選填",
+    "close": "關閉",
+    "autoSaved": "已自動儲存",
+    "autoSaving": "儲存中…",
+    "autoFailed": "儲存失敗，請檢查欄位後再試",
+    "autoUnsaved": "有尚未儲存的變更"
   },
   "login": {
     "title": "登入旅行規劃",

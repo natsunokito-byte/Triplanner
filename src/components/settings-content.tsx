@@ -38,7 +38,7 @@ export async function SettingsContent({ id, back, intercepted }: { id: string; b
   );
 
   return (
-    <DrawerShell title={t("settingsTitle")} intercepted={intercepted} closeHref={back} formId="settings-form" submitLabel={c("save")}>
+    <DrawerShell autosave title={t("settingsTitle")} intercepted={intercepted} closeHref={back} formId="settings-form" submitLabel={c("save")}>
       <SettingsForm action={saveSettings.bind(null, id)} intercepted={intercepted} back={back} formId="settings-form">
         <section className="card p-5">
           <TripForm bare initial={trip} />

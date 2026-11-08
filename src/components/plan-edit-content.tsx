@@ -59,7 +59,7 @@ export async function EditPlanContent({ id, planId, back, intercepted }: { id: s
   const recipients = peopleList.filter((p) => !p.is_me && onPlan.has(p.id)).map((p) => p.name);
 
   return (
-    <DrawerShell title={t("editTitle")} intercepted={intercepted} closeHref={back} formId="plan-form" submitLabel={c("save")} onDelete={<DrawerDeleteButton action={deletePlan.bind(null, id, planId, intercepted ? "close" : back)} intercepted={intercepted} message={t("deleteConfirm")} label={t("deletePlan")} />}>
+    <DrawerShell autosave title={t("editTitle")} intercepted={intercepted} closeHref={back} formId="plan-form" submitLabel={c("save")} onDelete={<DrawerDeleteButton action={deletePlan.bind(null, id, planId, intercepted ? "close" : back)} intercepted={intercepted} message={t("deleteConfirm")} label={t("deletePlan")} />}>
         <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex gap-2">
             <form action={duplicatePlan.bind(null, id, planId)}>

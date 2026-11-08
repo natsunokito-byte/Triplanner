@@ -10,7 +10,12 @@
     "copy": "Copy",
     "copied": "Copied",
     "settings": "Settings",
-    "optional": "Optional"
+    "optional": "Optional",
+    "close": "Close",
+    "autoSaved": "All changes saved",
+    "autoSaving": "Saving…",
+    "autoFailed": "Save failed. Check the fields and try again.",
+    "autoUnsaved": "Unsaved changes"
   },
   "login": {
     "title": "Sign in to Trip Planner",

@@ -29,6 +29,9 @@ export async function signOut() {
   redirect("/login");
 }
 
+/** Drawer saves (explicit or background autosave) never redirect: the client decides whether to close. */
+const isDrawerSave = (fd: FormData) => fd.get("back") === "close" || fd.get("autosave") === "1";
+
 async function requireUser() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
@@ -173,7 +176,8 @@ export async function saveSettings(id: string, fd: FormData) {
   const ids = fd.getAll("person_ids").map(String);
   const rows = ids.map((pid) => ({ pid, v: parsePerson(fd, `p:${pid}:`) }));
   const newName = String(fd.get("new:name") ?? "").trim();
-  const added = newName ? parsePerson(fd, "new:") : null;
+  // A person typed into the "new" row is only added by the explicit Save (never by a background autosave).
+  const added = newName && fd.get("autosave") !== "1" ? parsePerson(fd, "new:") : null;
   const { error } = await supabase
     .from("trips")
     .update({
@@ -195,7 +199,7 @@ export async function saveSettings(id: string, fd: FormData) {
     if (e) throw new Error(e.message);
   }
   revalidatePath(`/t/${id}`, "layout");
-  if (fd.get("back") === "close") return;
+  if (isDrawerSave(fd)) return;
   redirect(safeBack(id, fd.get("back"), `/t/${id}`));
 }
 
@@ -285,7 +289,7 @@ export async function createHotel(tripId: string, fd: FormData) {
   if (error) throw new Error(error.message);
   await syncHotelTodo(supabase, tripId, data);
   revalidatePath(`/t/${tripId}`, "layout");
-  if (fd.get("back") === "close") return; // drawer: the client closes it
+  if (isDrawerSave(fd)) return; // drawer: the client closes it
   redirect(safeBack(tripId, fd.get("back"), `/t/${tripId}`));
 }
 
@@ -302,7 +306,7 @@ export async function updateHotel(tripId: string, hotelId: string, fd: FormData)
   if (error) throw new Error(error.message);
   await syncHotelTodo(supabase, tripId, data);
   revalidatePath(`/t/${tripId}`, "layout");
-  if (fd.get("back") === "close") return; // drawer: the client closes it
+  if (isDrawerSave(fd)) return; // drawer: the client closes it
   redirect(safeBack(tripId, fd.get("back"), `/t/${tripId}`));
 }
 
@@ -501,7 +505,7 @@ export async function createPlan(tripId: string, fd: FormData) {
   await insertPlanTodos(supabase, tripId, data.id, newTodos, values.type);
   await syncPlanPeople(supabase, tripId, data.id, personIds);
   revalidatePath(`/t/${tripId}`, "layout");
-  if (fd.get("back") === "close") return; // drawer: the client closes it
+  if (isDrawerSave(fd)) return; // drawer: the client closes it
   redirect(safeBack(tripId, fd.get("back"), `/t/${tripId}`));
 }
 
@@ -511,11 +515,11 @@ export async function updatePlan(tripId: string, planId: string, fd: FormData) {
   const { error } = await supabase.from("plans").update(values).eq("id", planId).eq("trip_id", tripId);
   if (error) throw new Error(error.message);
   await saveCostItems(supabase, planId, items);
-  await insertPlanTodos(supabase, tripId, planId, newTodos, values.type);
+  if (fd.get("autosave") !== "1") await insertPlanTodos(supabase, tripId, planId, newTodos, values.type); // typed-but-uncommitted to-dos wait for the explicit Save
   await freezePlanRate(supabase, tripId, planId); // currency may have changed on an already-completed plan
   await syncPlanPeople(supabase, tripId, planId, personIds);
   revalidatePath(`/t/${tripId}`, "layout");
-  if (fd.get("back") === "close") return; // drawer: the client closes it
+  if (isDrawerSave(fd)) return; // drawer: the client closes it
   redirect(safeBack(tripId, fd.get("back"), `/t/${tripId}`));
 }
 
@@ -727,7 +731,7 @@ export async function createCommute(tripId: string, fd: FormData) {
   await saveStops(supabase, data.id, stops);
   await syncCommuteTodo(supabase, tripId, data);
   revalidatePath(`/t/${tripId}`, "layout");
-  if (fd.get("back") === "close") return; // drawer: the client closes it
+  if (isDrawerSave(fd)) return; // drawer: the client closes it
   redirect(safeBack(tripId, fd.get("back"), `/t/${tripId}`));
 }
 
@@ -740,7 +744,7 @@ export async function updateCommute(tripId: string, commuteId: string, fd: FormD
   await saveStops(supabase, commuteId, stops);
   await syncCommuteTodo(supabase, tripId, data);
   revalidatePath(`/t/${tripId}`, "layout");
-  if (fd.get("back") === "close") return; // drawer: the client closes it
+  if (isDrawerSave(fd)) return; // drawer: the client closes it
   redirect(safeBack(tripId, fd.get("back"), `/t/${tripId}`));
 }
 

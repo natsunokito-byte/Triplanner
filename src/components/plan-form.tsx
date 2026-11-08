@@ -1,7 +1,7 @@
 "use client";
 
+import { AutosaveForm } from "./autosave-form";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { UsdHint } from "./fx";
 import { PLAN_ICON, SELECTABLE_TYPES, canOpenClaim, TASK_TODO_TYPES, VISIBILITIES, ptVars, type PlanType, type Visibility } from "@/lib/plan-types";
@@ -50,7 +50,6 @@ export function PlanForm({
   photographers?: Photographer[];
 }) {
   const t = useTranslations("plan");
-  const router = useRouter();
   const [type, setType] = useState<PlanType>(plan?.type ?? defaults.type);
   const [visibility, setVisibility] = useState<Visibility>(plan?.visibility ?? "normal");
   const [openClaim, setOpenClaim] = useState(plan?.open_claim ?? false);
@@ -160,14 +159,7 @@ export function PlanForm({
   );
 
   return (
-    <form
-      id={formId}
-      action={async (fd) => {
-        await action(fd);
-        if (intercepted) router.back();
-      }}
-      className="space-y-5"
-    >
+    <AutosaveForm id={formId} action={action} intercepted={intercepted} className="space-y-5">
       {(intercepted || back) && <input type="hidden" name="back" value={intercepted ? "close" : back} />}
       <fieldset>
         <legend className="label">{t("type")}</legend>
@@ -369,6 +361,6 @@ export function PlanForm({
       </div>
 
       {!formId && <button type="submit" disabled={badDuration && !isWake} className="btn btn-primary">{submitLabel}</button>}
-    </form>
+    </AutosaveForm>
   );
 }
